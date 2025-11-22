@@ -1,0 +1,40 @@
+version: "2"
+formatters:
+  enable:
+    - gci
+    - gofmt
+    - goimports
+linters:
+  default: "none"
+  enable:
+    - bodyclose
+    - errcheck
+    - copyloopvar
+    - exhaustive
+    - gochecknoinits
+    - goconst
+    - gocritic
+    - gocyclo
+    - goprintffuncname
+    - gosec
+    - ineffassign
+    - nakedret
+    - noctx
+    - nolintlint
+    - staticcheck
+    - unconvert
+    - unused
+    - whitespace
+    - sloglint
+    - revive
+  exclusions:
+    rules: 
+      - linters: 
+          - gocritic
+        text: "hugeParam"
+      - linters: 
+          - revive
+        text: "var-naming"
+      - linters: 
+          - revive
+        text: "dot-imports"
