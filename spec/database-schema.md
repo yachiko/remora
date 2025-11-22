@@ -137,6 +137,288 @@ WHERE repository_owner = ?
 ORDER BY remind_at DESC;
 ```
 
+---
+
+## Transaction Strategy
+
+### Operations Requiring Transactions
+
+#### 1. Scheduler: Query and Lock Reminders (Critical)
+
+**Purpose**: Prevent duplicate processing even within single instance (protects against accidental multi-instance deployment)
+
+**PostgreSQL**:
+```sql
+BEGIN;
+
+UPDATE reminders 
+SET status = 'processing', 
+    updated_at = NOW()
+WHERE id IN (
+  SELECT id FROM reminders 
+  WHERE status = 'pending' 
+    AND remind_at <= NOW()
+    AND deleted_at IS NULL
+  ORDER BY remind_at ASC
+  LIMIT 100
+  FOR UPDATE SKIP LOCKED
+)
+RETURNING *;
+
+COMMIT;
+```
+
+**MySQL**:
+```sql
+START TRANSACTION;
+
+SELECT * FROM reminders
+WHERE status = 'pending'
+  AND remind_at <= NOW()
+  AND deleted_at IS NULL
+ORDER BY remind_at ASC
+LIMIT 100
+FOR UPDATE SKIP LOCKED;
+
+-- Then update in application code
+UPDATE reminders 
+SET status = 'processing', updated_at = NOW()
+WHERE id IN (...);
+
+COMMIT;
+```
+
+**SQLite** (Development only):
+```sql
+-- SQLite doesn't support SKIP LOCKED
+-- Use immediate transaction with simple update
+BEGIN IMMEDIATE;
+
+UPDATE reminders 
+SET status = 'processing'
+WHERE id IN (
+  SELECT id FROM reminders 
+  WHERE status = 'pending' 
+    AND remind_at <= NOW()
+  ORDER BY remind_at ASC
+  LIMIT 100
+);
+
+SELECT * FROM reminders WHERE status = 'processing';
+
+COMMIT;
+```
+
+**GORM Implementation**:
+```go
+func (r *ReminderRepository) GetAndLockDueReminders(limit int) ([]Reminder, error) {
+    var reminders []Reminder
+    
+    err := r.db.Transaction(func(tx *gorm.DB) error {
+        // For PostgreSQL/MySQL: use raw SQL with FOR UPDATE SKIP LOCKED
+        if r.db.Dialector.Name() == "postgres" || r.db.Dialector.Name() == "mysql" {
+            subQuery := tx.Model(&Reminder{}).
+                Where("status = ? AND remind_at <= ?", "pending", time.Now()).
+                Order("remind_at ASC").
+                Limit(limit).
+                Clauses(clause.Locking{Strength: "UPDATE", Options: "SKIP LOCKED"})
+            
+            return tx.Model(&Reminder{}).
+                Where("id IN (?)", subQuery.Select("id")).
+                Update("status", "processing").
+                Update("updated_at", time.Now()).
+                Find(&reminders).Error
+        }
+        
+        // For SQLite: simple update without SKIP LOCKED
+        return tx.Model(&Reminder{}).
+            Where("status = ? AND remind_at <= ?", "pending", time.Now()).
+            Order("remind_at ASC").
+            Limit(limit).
+            Update("status", "processing").
+            Update("updated_at", time.Now()).
+            Find(&reminders).Error
+    })
+    
+    return reminders, err
+}
+```
+
+**Why Needed**:
+- Prevents race conditions within single instance (concurrent goroutines)
+- Safety net against accidental multi-instance deployment
+- `SKIP LOCKED` ensures non-blocking: if row is locked, skip it
+- Atomic operation: query and update in single transaction
+
+---
+
+#### 2. Webhook Handler: Reminder Creation (No Transaction Needed)
+
+**Current Approach**:
+```go
+// 1. Insert reminder (GORM handles transaction internally)
+reminder := &Reminder{...}
+db.Create(reminder)
+
+// 2. Add GitHub reaction (separate operation, can fail independently)
+githubClient.AddReaction(commentID, "eyes")
+```
+
+**Rationale**:
+- INSERT is atomic on its own
+- GitHub reaction failure is tolerable (reminder still created)
+- If reaction fails, user can see reminder in database via admin API
+- Wrapping both in transaction adds complexity without significant benefit
+
+---
+
+#### 3. Reminder Cancellation: Comment Deletion (No Transaction Needed)
+
+**Operation**:
+```sql
+UPDATE reminders 
+SET status = 'cancelled', 
+    updated_at = NOW()
+WHERE comment_id = ?;
+```
+
+**Rationale**:
+- Single UPDATE operation
+- GORM handles atomic update
+- No multi-step operation requiring transaction
+
+---
+
+#### 4. Status Update After Firing (No Transaction Needed)
+
+**Operation**:
+```sql
+UPDATE reminders 
+SET status = 'fired',
+    fired_at = NOW(),
+    updated_at = NOW()
+WHERE id = ?;
+```
+
+**Rationale**:
+- Single UPDATE operation
+- Already marked as 'processing' (locked by scheduler)
+- No concurrent modification possible
+
+---
+
+#### 5. Retry Logic: Failed → Pending (Conditional Transaction)
+
+**Operation**:
+```go
+db.Model(&reminder).
+    Where("id = ? AND retry_count < ?", id, maxRetries).
+    Updates(map[string]interface{}{
+        "status": "pending",
+        "updated_at": time.Now(),
+    })
+```
+
+**Rationale**:
+- Single UPDATE with WHERE condition
+- GORM provides atomic update
+- Condition prevents race: only updates if retry_count still valid
+
+---
+
+#### 6. Batch Cleanup: Old Reminders (Optional Transaction)
+
+**Operation**:
+```sql
+-- Hard delete old fired/failed reminders
+DELETE FROM reminders 
+WHERE status IN ('fired', 'failed') 
+  AND (fired_at < NOW() - INTERVAL '365 days'
+       OR updated_at < NOW() - INTERVAL '365 days');
+```
+
+**Transaction Usage**:
+```go
+// Optional: wrap in transaction for safety
+db.Transaction(func(tx *gorm.DB) error {
+    result := tx.Unscoped(). // Hard delete
+        Where("status IN ?", []string{"fired", "failed"}).
+        Where("fired_at < ? OR updated_at < ?", 
+            time.Now().AddDate(-1, 0, 0),
+            time.Now().AddDate(-1, 0, 0)).
+        Delete(&Reminder{})
+    
+    log.Info("Cleaned up old reminders", "count", result.RowsAffected)
+    return nil
+})
+```
+
+**Rationale**:
+- Single DELETE but affects many rows
+- Transaction provides rollback safety if error occurs mid-delete
+- Not critical (can run again if fails)
+
+---
+
+### Transaction Isolation Levels
+
+**Default**: Use database defaults
+- PostgreSQL: `READ COMMITTED`
+- MySQL: `REPEATABLE READ`
+- SQLite: `SERIALIZABLE`
+
+**Custom Isolation** (if needed):
+```go
+db.Transaction(func(tx *gorm.DB) error {
+    tx.Exec("SET TRANSACTION ISOLATION LEVEL READ COMMITTED")
+    // ... operations
+}, &sql.TxOptions{Isolation: sql.LevelReadCommitted})
+```
+
+**Recommendation**: Stick with defaults unless specific issue arises
+
+---
+
+### Concurrency Strategy
+
+**Scheduler Processing**:
+- Single goroutine processes reminders sequentially
+- Query locks up to 100 reminders
+- Process each one-by-one
+- No concurrent processing within scheduler cycle
+
+**Rationale**:
+- Simple and predictable
+- `FOR UPDATE SKIP LOCKED` prevents external conflicts
+- Sequential processing avoids complexity
+- Sufficient for expected load (100 reminders per 5-minute cycle)
+
+**Future Enhancement**:
+- If processing >100 reminders per cycle becomes bottleneck
+- Consider worker pool (5-10 goroutines)
+- Each worker locks individual reminder before processing
+
+---
+
+### Connection Pool Settings
+
+```go
+sqlDB, _ := db.DB()
+
+// Recommended settings
+sqlDB.SetMaxIdleConns(10)           // Keep 10 idle connections
+sqlDB.SetMaxOpenConns(100)          // Max 100 open connections
+sqlDB.SetConnMaxLifetime(time.Hour) // Recycle connections hourly
+sqlDB.SetConnMaxIdleTime(10 * time.Minute) // Close idle after 10min
+```
+
+**Rationale**:
+- Webhook handler: burst traffic, needs connection pool
+- Scheduler: single goroutine, low connection usage
+- 100 max connections is generous for expected load
+
+---
+
 ## Database-Specific Considerations
 
 ### PostgreSQL
@@ -241,6 +523,173 @@ sqlDB.SetMaxIdleConns(10)
 sqlDB.SetMaxOpenConns(100)
 sqlDB.SetConnMaxLifetime(time.Hour)
 ```
+
+---
+
+## Debugging Queries
+
+### Find Stuck Reminders (Processing Too Long)
+
+```sql
+-- Reminders in 'processing' state for more than 1 hour
+SELECT id, repository_owner, repository_name, issue_number,
+       requester_username, remind_at, status, updated_at,
+       EXTRACT(EPOCH FROM (NOW() - updated_at))/3600 as hours_stuck
+FROM reminders
+WHERE status = 'processing'
+  AND updated_at < NOW() - INTERVAL '1 hour'
+  AND deleted_at IS NULL
+ORDER BY updated_at ASC;
+```
+
+### Find Failed Reminders with Errors
+
+```sql
+-- All failed reminders with error messages
+SELECT id, repository_owner, repository_name, issue_number,
+       requester_username, remind_at, retry_count, error_message,
+       updated_at
+FROM reminders
+WHERE status = 'failed'
+  AND deleted_at IS NULL
+ORDER BY updated_at DESC
+LIMIT 50;
+```
+
+### Find Overdue Pending Reminders
+
+```sql
+-- Reminders that should have fired but are still pending
+SELECT id, repository_owner, repository_name, issue_number,
+       requester_username, remind_at, 
+       EXTRACT(EPOCH FROM (NOW() - remind_at))/3600 as hours_overdue
+FROM reminders
+WHERE status = 'pending'
+  AND remind_at < NOW()
+  AND deleted_at IS NULL
+ORDER BY remind_at ASC
+LIMIT 100;
+```
+
+### Find Reminders for Specific User
+
+```sql
+-- All reminders created by a specific user
+SELECT id, repository_owner, repository_name, issue_number,
+       remind_at, status, created_at, fired_at
+FROM reminders
+WHERE requester_username = 'username'
+  AND deleted_at IS NULL
+ORDER BY created_at DESC;
+```
+
+### Find Reminders for Specific Repository
+
+```sql
+-- All reminders in a specific repository
+SELECT id, issue_number, requester_username, remind_at, 
+       status, created_at, original_command
+FROM reminders
+WHERE repository_owner = 'owner'
+  AND repository_name = 'repo'
+  AND deleted_at IS NULL
+ORDER BY created_at DESC;
+```
+
+### Reminder Status Summary
+
+```sql
+-- Count of reminders by status
+SELECT status, COUNT(*) as count
+FROM reminders
+WHERE deleted_at IS NULL
+GROUP BY status
+ORDER BY count DESC;
+```
+
+### Recent Reminder Activity
+
+```sql
+-- Reminders created, fired, or failed in last 24 hours
+SELECT 
+  DATE_TRUNC('hour', created_at) as hour,
+  status,
+  COUNT(*) as count
+FROM reminders
+WHERE created_at > NOW() - INTERVAL '24 hours'
+  AND deleted_at IS NULL
+GROUP BY DATE_TRUNC('hour', created_at), status
+ORDER BY hour DESC, status;
+```
+
+### Find High Retry Reminders
+
+```sql
+-- Reminders that have been retried multiple times
+SELECT id, repository_owner, repository_name, issue_number,
+       requester_username, retry_count, error_message, status
+FROM reminders
+WHERE retry_count >= 3
+  AND deleted_at IS NULL
+ORDER BY retry_count DESC, updated_at DESC
+LIMIT 50;
+```
+
+### Average Time to Fire
+
+```sql
+-- Average time between reminder creation and firing
+SELECT 
+  AVG(EXTRACT(EPOCH FROM (fired_at - created_at))) as avg_seconds,
+  MIN(EXTRACT(EPOCH FROM (fired_at - created_at))) as min_seconds,
+  MAX(EXTRACT(EPOCH FROM (fired_at - created_at))) as max_seconds
+FROM reminders
+WHERE status = 'fired'
+  AND fired_at IS NOT NULL
+  AND created_at > NOW() - INTERVAL '7 days';
+```
+
+### Find Reminders by Issue
+
+```sql
+-- All reminders for a specific issue (including cancelled/deleted)
+SELECT id, requester_username, remind_at, status, 
+       created_at, fired_at, deleted_at
+FROM reminders
+WHERE repository_owner = 'owner'
+  AND repository_name = 'repo'
+  AND issue_number = 123
+ORDER BY created_at DESC;
+```
+
+### Check Index Usage (PostgreSQL)
+
+```sql
+-- Verify indexes are being used
+EXPLAIN ANALYZE
+SELECT * FROM reminders
+WHERE status = 'pending' 
+  AND remind_at <= NOW()
+  AND deleted_at IS NULL
+ORDER BY remind_at ASC
+LIMIT 100;
+
+-- Should show "Index Scan using idx_scheduler_query"
+```
+
+### Database Size Statistics
+
+```sql
+-- PostgreSQL: Table size and row count
+SELECT 
+  pg_size_pretty(pg_total_relation_size('reminders')) as total_size,
+  COUNT(*) as total_rows,
+  COUNT(*) FILTER (WHERE deleted_at IS NULL) as active_rows,
+  COUNT(*) FILTER (WHERE status = 'pending') as pending_rows
+FROM reminders;
+```
+
+---
 
 ## Testing Strategy
 

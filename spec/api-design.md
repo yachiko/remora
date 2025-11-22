@@ -4,6 +4,92 @@
 
 Remora exposes HTTP endpoints for GitHub webhook integration, health monitoring, and optionally querying reminders. All endpoints follow REST principles and use JSON for data exchange.
 
+---
+
+## GitHub App Configuration
+
+### Required Permissions
+
+The GitHub App requires the following permissions:
+
+| Permission | Access Level | Purpose |
+|------------|-------------|----------|
+| **Issues** | Read & Write | Post reminder comments, add reactions to issue comments |
+| **Pull Requests** | Read & Write | Post reminder comments on PRs, add reactions to PR comments |
+| **Metadata** | Read | Access repository information (owner, name) |
+
+**Note**: GitHub API treats issue comments and PR comments similarly - both use the issue comments endpoint. However, requesting both permissions explicitly ensures clarity.
+
+### Webhook Events
+
+Subscribe to the following webhook events:
+
+- `issue_comment` - Triggered when comments are created, edited, or deleted on issues
+- `pull_request_review_comment` - Triggered for PR review comments (optional, if supporting review comments)
+
+### GitHub App Manifest Example
+
+```yaml
+name: Remora
+description: Set reminders on GitHub issues and pull requests
+url: https://github.com/owner/remora
+hook_attributes:
+  url: https://your-domain.com/webhook
+  active: true
+public: true
+default_permissions:
+  issues: write
+  pull_requests: write
+  metadata: read
+default_events:
+  - issue_comment
+```
+
+### Installation Token Management
+
+**Token Lifecycle**:
+- GitHub installation tokens expire after **60 minutes**
+- Tokens are scoped to specific installations (repository or organization)
+
+**Caching Strategy**:
+
+```go
+type TokenCache struct {
+    tokens map[int64]*CachedToken // Key: installation_id
+    mu     sync.RWMutex
+}
+
+type CachedToken struct {
+    Token     string
+    ExpiresAt time.Time
+}
+```
+
+**Cache Implementation**:
+1. **Cache Key**: Installation ID (one token per installation)
+2. **TTL**: Refresh tokens at **55 minutes** (5-minute safety buffer)
+3. **Storage**: In-memory map with RWMutex for thread safety
+4. **Refresh Logic**: Check expiration before each use, refresh if needed
+5. **Cleanup**: Optional background goroutine to remove expired entries
+
+**Token Refresh Flow**:
+```go
+func (c *TokenCache) GetToken(installationID int64) (string, error) {
+    c.mu.RLock()
+    cached, exists := c.tokens[installationID]
+    c.mu.RUnlock()
+    
+    if exists && time.Now().Before(cached.ExpiresAt.Add(-5 * time.Minute)) {
+        return cached.Token, nil
+    }
+    
+    // Token expired or doesn't exist, fetch new one
+    return c.refreshToken(installationID)
+}
+```
+
+---
+
 ## Endpoints
 
 ### 1. GitHub Webhook Endpoint
@@ -80,17 +166,50 @@ POST /webhook
 
 **Processing Flow**:
 1. Validate webhook signature using `X-Hub-Signature-256` header
-2. Filter for `issue_comment` or `pull_request_review_comment` events
-3. Check if comment body starts with "remora "
-4. Parse time expression
-5. Store reminder in database
-6. Add reaction (👀/✅) to comment via GitHub API
-7. Return 200 OK
+2. Validate payload structure and required fields
+3. Filter for `issue_comment` or `pull_request_review_comment` events
+4. Check if comment body starts with "remora "
+5. Parse time expression
+6. Store reminder in database
+7. Add reaction (👀/✅) to comment via GitHub API
+8. Return 200 OK
+
+**Webhook Payload Validation**:
+
+Beyond signature validation, Remora validates:
+
+1. **Required Fields Presence**:
+   - `action` field exists and is a string
+   - `comment` object exists with `id`, `body`, `user`, `html_url`
+   - `repository` object exists with `owner`, `name`, `full_name`
+   - `issue` or `pull_request` object exists with `number`
+   - `installation.id` exists
+
+2. **Field Type Validation**:
+   - `comment.id` is a number
+   - `issue.number` or `pull_request.number` is a number
+   - `comment.body` is a string
+
+3. **Payload Size**:
+   - Maximum 1 MB payload size
+   - Reject larger payloads with 413 (Payload Too Large)
+
+4. **Unknown Fields**:
+   - Log warnings for unknown top-level fields
+   - Continue processing (forward compatibility)
+
+**Validation Error Responses**:
+- Missing required fields → 400 Bad Request
+- Invalid field types → 400 Bad Request  
+- Payload too large → 413 Payload Too Large
+- Invalid signature → 401 Unauthorized
 
 **Security**:
 - HMAC-SHA256 signature validation using webhook secret
 - Reject requests with invalid signatures
-- Rate limiting (configurable)
+- Payload structure validation (required fields, types)
+- Request size limits (1 MB maximum)
+- Request timeout (10 seconds to respond to GitHub)
 
 ---
 
@@ -333,8 +452,36 @@ Remora interacts with GitHub's REST API for the following operations:
 **Request Body**:
 ```json
 {
-  "body": "@username reminder from https://github.com/owner/repo/issues/123#issuecomment-456"
+  "body": "@username 🔔 Reminder!\n\nYou asked to be reminded about this issue.\n\nOriginal request: https://github.com/owner/repo/issues/123#issuecomment-456"
 }
+```
+
+**Reminder Comment Format**:
+
+```markdown
+@{username} 🔔 Reminder!
+
+You asked to be reminded about this issue.
+
+Original request: {comment_url}
+```
+
+**Example**:
+```markdown
+@alice 🔔 Reminder!
+
+You asked to be reminded about this issue.
+
+Original request: https://github.com/acme/project/issues/42#issuecomment-123456
+```
+
+**Template Variables**:
+- `{username}`: GitHub username of requester (e.g., `alice`)
+- `{comment_url}`: Full URL to original comment where reminder was requested
+
+**Future Enhancement**: Comment format may become configurable via environment variable:
+```bash
+REMORA_COMMENT_TEMPLATE="@{username} reminder from {comment_url}"
 ```
 
 **When Used**:
