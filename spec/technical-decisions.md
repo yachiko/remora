@@ -130,13 +130,28 @@ func parseReminder(command string) (time.Time, error) {
 
 **Decision**: Environment variables only (12-factor app approach)
 
+**Database Credentials**: Separate environment variables instead of connection URL
+
 **Rationale**:
 - Container-friendly and cloud-native
 - Works seamlessly with Docker, Kubernetes, and cloud platforms
 - No config file synchronization issues
 - Secrets managed via environment (integrated with secret managers)
+- Separate credential fields (DATABASE_USER, DATABASE_PASSWORD) improve security:
+  - Passwords not exposed in connection URLs or logs
+  - Better integration with secret management systems (Vault, AWS Secrets Manager)
+  - Supports different deployment patterns (sidecar containers, cloud-managed databases)
 - Simple and explicit
 - Easy to override for different environments
+
+**Database Configuration Fields**:
+- `DATABASE_TYPE`: postgresql, mysql, or sqlite
+- `DATABASE_HOST`: Database server hostname
+- `DATABASE_PORT`: Database server port (auto-defaults: PostgreSQL=5432, MySQL=3306)
+- `DATABASE_NAME`: Database name
+- `DATABASE_USER`: Database username (required for postgresql/mysql)
+- `DATABASE_PASSWORD`: Database password (required for postgresql/mysql)
+- `DATABASE_SSLMODE`: SSL mode for PostgreSQL (disable, require, verify-ca, verify-full)
 
 ## Logging
 
@@ -249,6 +264,8 @@ func parseReminder(command string) (time.Time, error) {
 - No personal access tokens (better security model)
 - Least-privilege permissions
 - Secrets via environment variables (integration with secret managers)
+- Database credentials stored separately (never in URLs or logs)
+- Supports secret rotation without URL reconstruction
 
 ## Dependencies Summary
 

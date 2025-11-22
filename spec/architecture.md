@@ -53,7 +53,7 @@ Remora is a GitHub-integrated reminder bot that allows users to set reminders on
 - **Purpose**: Loads and validates application configuration
 - **Implementation**: Environment variables only
 - **Key Settings**:
-  - Database connection parameters
+  - Database connection parameters (type, host, port, name, user, password, SSL mode)
   - GitHub App credentials (App ID, private key, webhook secret)
   - Scheduler polling interval
   - Error handling behavior (reactions only vs reactions + comments)
@@ -504,7 +504,8 @@ Total:                    ~150 MB base + workload
 - Webhook signature validation (HMAC-SHA256)
 - GitHub App private key stored as environment variable
 - No user tokens stored (GitHub App authentication only)
-- Database credentials via environment variables
+- Database credentials via separate environment variables (host, port, user, password)
+- Credentials never logged or exposed in connection URLs
 - TLS/HTTPS required for webhook endpoint
 
 ## Scalability Notes
