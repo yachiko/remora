@@ -1,0 +1,167 @@
+version: '3.8'
+
+services:
+  # PostgreSQL database
+  postgres:
+    image: postgres:16-alpine
+    container_name: remora-postgres
+    environment:
+      POSTGRES_DB: remora
+      POSTGRES_USER: remora_user
+      POSTGRES_PASSWORD: remora_dev_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U remora_user -d remora"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Remora application
+  remora:
+    build:
+      context: ../..
+      dockerfile: deployments/docker/Dockerfile
+    container_name: remora-app
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      # Database Configuration
+      DATABASE_TYPE: postgresql
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      DATABASE_NAME: remora
+      DATABASE_USER: remora_user
+      DATABASE_PASSWORD: remora_dev_password
+      DATABASE_SSLMODE: disable
+
+      # HTTP Server Configuration
+      REMORA_PORT: 8080
+      REMORA_WEBHOOK_PATH: /webhook
+      REMORA_HEALTH_PATH: /health
+      REMORA_READY_PATH: /ready
+
+      # GitHub App Configuration (override via .env file)
+      GITHUB_APP_ID: ${GITHUB_APP_ID}
+      GITHUB_APP_PRIVATE_KEY: ${GITHUB_APP_PRIVATE_KEY}
+      GITHUB_WEBHOOK_SECRET: ${GITHUB_WEBHOOK_SECRET}
+
+      # Scheduler Configuration
+      REMORA_SCHEDULER_INTERVAL: 5
+
+      # Error Handling
+      REMORA_ERROR_MODE: reaction_only
+
+      # Reminder Behavior
+      REMORA_POST_TO_CLOSED: true
+
+      # Admin API
+      REMORA_ENABLE_API: false
+      REMORA_API_SECRET: ${REMORA_API_SECRET:-dev-secret}
+
+      # Rate Limiting
+      REMORA_RATE_LIMIT: 60
+
+      # Logging
+      ENVIRONMENT: development
+      LOG_LEVEL: debug
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    restart: unless-stopped
+
+  # MySQL database (alternative to PostgreSQL)
+  mysql:
+    image: mysql:8.0
+    container_name: remora-mysql
+    environment:
+      MYSQL_DATABASE: remora
+      MYSQL_USER: remora_user
+      MYSQL_PASSWORD: remora_dev_password
+      MYSQL_ROOT_PASSWORD: root_password
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    command: --default-authentication-plugin=mysql_native_password
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "remora_user", "-premora_dev_password"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    profiles:
+      - mysql
+
+  # Remora with MySQL (alternative configuration)
+  remora-mysql:
+    build:
+      context: ../..
+      dockerfile: deployments/docker/Dockerfile
+    container_name: remora-mysql-app
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      # Database Configuration
+      DATABASE_TYPE: mysql
+      DATABASE_HOST: mysql
+      DATABASE_PORT: 3306
+      DATABASE_NAME: remora
+      DATABASE_USER: remora_user
+      DATABASE_PASSWORD: remora_dev_password
+
+      # HTTP Server Configuration
+      REMORA_PORT: 8080
+      REMORA_WEBHOOK_PATH: /webhook
+      REMORA_HEALTH_PATH: /health
+      REMORA_READY_PATH: /ready
+
+      # GitHub App Configuration
+      GITHUB_APP_ID: ${GITHUB_APP_ID}
+      GITHUB_APP_PRIVATE_KEY: ${GITHUB_APP_PRIVATE_KEY}
+      GITHUB_WEBHOOK_SECRET: ${GITHUB_WEBHOOK_SECRET}
+
+      # Scheduler Configuration
+      REMORA_SCHEDULER_INTERVAL: 5
+
+      # Error Handling
+      REMORA_ERROR_MODE: reaction_only
+
+      # Reminder Behavior
+      REMORA_POST_TO_CLOSED: true
+
+      # Admin API
+      REMORA_ENABLE_API: false
+      REMORA_API_SECRET: ${REMORA_API_SECRET:-dev-secret}
+
+      # Rate Limiting
+      REMORA_RATE_LIMIT: 60
+
+      # Logging
+      ENVIRONMENT: development
+      LOG_LEVEL: debug
+    ports:
+      - "8081:8080"
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    restart: unless-stopped
+    profiles:
+      - mysql
+
+volumes:
+  postgres_data:
+    driver: local
+  mysql_data:
+    driver: local

@@ -1,0 +1,39 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: remora-config
+  namespace: remora
+  labels:
+    app: remora
+data:
+  # Database Configuration (non-sensitive)
+  DATABASE_TYPE: "postgresql"
+  DATABASE_HOST: "postgres-service.remora.svc.cluster.local"
+  DATABASE_PORT: "5432"
+  DATABASE_NAME: "remora"
+  DATABASE_SSLMODE: "require"
+
+  # HTTP Server Configuration
+  REMORA_PORT: "8080"
+  REMORA_WEBHOOK_PATH: "/webhook"
+  REMORA_HEALTH_PATH: "/health"
+  REMORA_READY_PATH: "/ready"
+
+  # Scheduler Configuration
+  REMORA_SCHEDULER_INTERVAL: "5"
+
+  # Error Handling
+  REMORA_ERROR_MODE: "reaction_only"
+
+  # Reminder Behavior
+  REMORA_POST_TO_CLOSED: "true"
+
+  # Admin API
+  REMORA_ENABLE_API: "false"
+
+  # Rate Limiting
+  REMORA_RATE_LIMIT: "60"
+
+  # Logging
+  ENVIRONMENT: "production"
+  LOG_LEVEL: "info"

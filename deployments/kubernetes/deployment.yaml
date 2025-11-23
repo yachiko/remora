@@ -1,0 +1,209 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: remora
+  namespace: remora
+  labels:
+    app: remora
+    version: v1
+spec:
+  # Single instance only (no multi-instance support in Phase 1)
+  replicas: 1
+  strategy:
+    type: Recreate  # Ensure only one instance runs at a time
+  selector:
+    matchLabels:
+      app: remora
+  template:
+    metadata:
+      labels:
+        app: remora
+        version: v1
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: remora
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      containers:
+      - name: remora
+        image: remora:latest  # Update with your image registry
+        imagePullPolicy: IfNotPresent
+        ports:
+        - name: http
+          containerPort: 8080
+          protocol: TCP
+        env:
+        # ConfigMap environment variables
+        - name: DATABASE_TYPE
+          valueFrom:
+            configMapKeyRef:
+              name: remora-config
+              key: DATABASE_TYPE
+        - name: DATABASE_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: remora-config
+              key: DATABASE_HOST
+        - name: DATABASE_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: remora-config
+              key: DATABASE_PORT
+        - name: DATABASE_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: remora-config
+              key: DATABASE_NAME
+        - name: DATABASE_SSLMODE
+          valueFrom:
+            configMapKeyRef:
+              name: remora-config
+              key: DATABASE_SSLMODE
+        - name: REMORA_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: remora-config
+              key: REMORA_PORT
+        - name: REMORA_WEBHOOK_PATH
+          valueFrom:
+            configMapKeyRef:
+              name: remora-config
+              key: REMORA_WEBHOOK_PATH
+        - name: REMORA_HEALTH_PATH
+          valueFrom:
+            configMapKeyRef:
+              name: remora-config
+              key: REMORA_HEALTH_PATH
+        - name: REMORA_READY_PATH
+          valueFrom:
+            configMapKeyRef:
+              name: remora-config
+              key: REMORA_READY_PATH
+        - name: REMORA_SCHEDULER_INTERVAL
+          valueFrom:
+            configMapKeyRef:
+              name: remora-config
+              key: REMORA_SCHEDULER_INTERVAL
+        - name: REMORA_ERROR_MODE
+          valueFrom:
+            configMapKeyRef:
+              name: remora-config
+              key: REMORA_ERROR_MODE
+        - name: REMORA_POST_TO_CLOSED
+          valueFrom:
+            configMapKeyRef:
+              name: remora-config
+              key: REMORA_POST_TO_CLOSED
+        - name: REMORA_ENABLE_API
+          valueFrom:
+            configMapKeyRef:
+              name: remora-config
+              key: REMORA_ENABLE_API
+        - name: REMORA_RATE_LIMIT
+          valueFrom:
+            configMapKeyRef:
+              name: remora-config
+              key: REMORA_RATE_LIMIT
+        - name: ENVIRONMENT
+          valueFrom:
+            configMapKeyRef:
+              name: remora-config
+              key: ENVIRONMENT
+        - name: LOG_LEVEL
+          valueFrom:
+            configMapKeyRef:
+              name: remora-config
+              key: LOG_LEVEL
+        
+        # Secret environment variables
+        - name: DATABASE_USER
+          valueFrom:
+            secretKeyRef:
+              name: remora-secrets
+              key: DATABASE_USER
+        - name: DATABASE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: remora-secrets
+              key: DATABASE_PASSWORD
+        - name: GITHUB_APP_ID
+          valueFrom:
+            secretKeyRef:
+              name: remora-secrets
+              key: GITHUB_APP_ID
+        - name: GITHUB_APP_PRIVATE_KEY
+          valueFrom:
+            secretKeyRef:
+              name: remora-secrets
+              key: GITHUB_APP_PRIVATE_KEY
+        - name: GITHUB_WEBHOOK_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: remora-secrets
+              key: GITHUB_WEBHOOK_SECRET
+        - name: REMORA_API_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: remora-secrets
+              key: REMORA_API_SECRET
+              optional: true
+        
+        # Resource limits
+        resources:
+          requests:
+            cpu: 250m
+            memory: 256Mi
+          limits:
+            cpu: 1000m
+            memory: 1Gi
+        
+        # Liveness probe
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: http
+          initialDelaySeconds: 10
+          periodSeconds: 30
+          timeoutSeconds: 3
+          failureThreshold: 3
+        
+        # Readiness probe
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: http
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          timeoutSeconds: 3
+          failureThreshold: 3
+        
+        # Security context
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          runAsUser: 1000
+          capabilities:
+            drop:
+            - ALL
+        
+        # Volume mounts
+        volumeMounts:
+        - name: tmp
+          mountPath: /tmp
+      
+      # Volumes
+      volumes:
+      - name: tmp
+        emptyDir: {}
+      
+      # Restart policy
+      restartPolicy: Always
+      
+      # Termination grace period
+      terminationGracePeriodSeconds: 30
