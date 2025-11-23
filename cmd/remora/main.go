@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/yachiko/remora/internal/api"
 	"github.com/yachiko/remora/internal/config"
 	"github.com/yachiko/remora/internal/database"
 	"github.com/yachiko/remora/internal/github"
@@ -101,6 +102,21 @@ func main() {
 
 	// Readiness endpoint
 	mux.HandleFunc("/ready", readinessHandler(database.DB, sched, logger.Logger))
+
+	// Admin API endpoints (if enabled)
+	if cfg.EnableAPI {
+		if cfg.APISecret == "" {
+			logger.Fatal("API is enabled but API secret is not configured")
+		}
+
+		apiHandler := api.NewHandler(repo, logger.Logger)
+
+		// Register admin endpoints with authentication
+		mux.HandleFunc("/api/v1/reminders", api.AuthMiddleware(cfg.APISecret, apiHandler.ListReminders))
+
+		logger.Info("admin API enabled",
+			zap.String("endpoint", "/api/v1/reminders"))
+	}
 
 	server := &http.Server{
 		Addr:         fmt.Sprintf(":%d", cfg.Port),
