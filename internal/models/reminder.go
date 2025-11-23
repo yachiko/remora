@@ -33,6 +33,9 @@ type Reminder struct {
 	CommentID  int64  `gorm:"not null" json:"comment_id"`
 	CommentURL string `gorm:"size:512;not null" json:"comment_url"`
 
+	// GitHub App installation
+	InstallationID int64 `gorm:"not null" json:"installation_id"`
+
 	// Requester information
 	RequesterUsername string `gorm:"size:255;not null" json:"requester_username"`
 	RequesterID       int64  `gorm:"not null" json:"requester_id"`

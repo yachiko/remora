@@ -194,6 +194,7 @@ func (h *Handler) handleCommentCreated(ctx context.Context, requestID string, ev
 		IssueNumber:       event.Issue.Number,
 		CommentID:         event.Comment.ID,
 		CommentURL:        event.Comment.HTMLURL,
+		InstallationID:    event.Installation.ID,
 		RequesterUsername: event.Comment.User.Login,
 		RequesterID:       event.Comment.User.ID,
 		RemindAt:          cmd.RemindAt,
