@@ -68,7 +68,7 @@ func TestGetInstallationToken_Caching(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		callCount++
 
-		if r.URL.Path != "/app/installations/123/access_tokens" {
+		if r.URL.Path != testInstallationTokenPath {
 			t.Errorf("unexpected path: %s", r.URL.Path)
 		}
 
@@ -76,7 +76,7 @@ func TestGetInstallationToken_Caching(t *testing.T) {
 			"token":      "ghs_test_token",
 			"expires_at": time.Now().Add(1 * time.Hour).Format(time.RFC3339),
 		}
-		json.NewEncoder(w).Encode(response)
+		_ = json.NewEncoder(w).Encode(response)
 	}))
 	defer server.Close()
 
@@ -120,12 +120,12 @@ func TestGetInstallationToken_Expiration(t *testing.T) {
 		ExpiresAt: time.Now().Add(-1 * time.Hour),
 	}
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		response := map[string]interface{}{
 			"token":      "ghs_new_token",
 			"expires_at": time.Now().Add(1 * time.Hour).Format(time.RFC3339),
 		}
-		json.NewEncoder(w).Encode(response)
+		_ = json.NewEncoder(w).Encode(response)
 	}))
 	defer server.Close()
 
@@ -136,7 +136,7 @@ func TestGetInstallationToken_Expiration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to get installation token: %v", err)
 	}
-	if token != "ghs_new_token" {
+	if token != "ghs_new_token" { //nolint:gosec // Test token value, not a real credential
 		t.Errorf("expected new token, got %s", token)
 	}
 }
@@ -168,14 +168,14 @@ func TestTokenCache_Concurrency(t *testing.T) {
 	client := NewClient(12345, privateKey, logger)
 
 	callCount := 0
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		callCount++
 		time.Sleep(10 * time.Millisecond)
 		response := map[string]interface{}{
 			"token":      "ghs_concurrent_token",
 			"expires_at": time.Now().Add(1 * time.Hour).Format(time.RFC3339),
 		}
-		json.NewEncoder(w).Encode(response)
+		_ = json.NewEncoder(w).Encode(response)
 	}))
 	defer server.Close()
 

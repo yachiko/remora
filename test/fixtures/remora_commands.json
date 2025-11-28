@@ -1,0 +1,78 @@
+{
+  "comment_variations": [
+    {
+      "name": "simple_days",
+      "body": "remora 2 days",
+      "description": "Simple reminder in days"
+    },
+    {
+      "name": "tomorrow_with_time",
+      "body": "remora tomorrow at 3pm",
+      "description": "Tomorrow with specific time"
+    },
+    {
+      "name": "next_week",
+      "body": "remora next Monday 9am",
+      "description": "Next Monday at 9am"
+    },
+    {
+      "name": "specific_date",
+      "body": "remora December 25th",
+      "description": "Specific date"
+    },
+    {
+      "name": "hours",
+      "body": "remora in 4 hours",
+      "description": "Reminder in hours"
+    },
+    {
+      "name": "minutes",
+      "body": "remora in 30 minutes",
+      "description": "Reminder in minutes"
+    },
+    {
+      "name": "weeks",
+      "body": "remora in 2 weeks",
+      "description": "Reminder in weeks"
+    },
+    {
+      "name": "with_timezone",
+      "body": "remora Friday 5pm EST",
+      "description": "Reminder with timezone"
+    }
+  ],
+  "invalid_comments": [
+    {
+      "name": "past_date",
+      "body": "remora yesterday",
+      "description": "Past date should fail"
+    },
+    {
+      "name": "no_time_expression",
+      "body": "remora",
+      "description": "Missing time expression"
+    },
+    {
+      "name": "invalid_format",
+      "body": "remora blahblah",
+      "description": "Unparseable time expression"
+    }
+  ],
+  "non_remora_comments": [
+    {
+      "name": "regular_comment",
+      "body": "This is just a regular comment",
+      "description": "Regular comment without remora"
+    },
+    {
+      "name": "mention_remora",
+      "body": "We should use remora for this maybe",
+      "description": "Mentions remora but not as command"
+    },
+    {
+      "name": "code_block",
+      "body": "```\nremora 2 days\n```",
+      "description": "Remora in code block should be ignored"
+    }
+  ]
+}

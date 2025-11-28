@@ -1,3 +1,4 @@
+// Package models provides data models for the Remora reminder service.
 package models
 
 import (
@@ -9,12 +10,18 @@ import (
 // ReminderStatus represents the state of a reminder
 type ReminderStatus string
 
+// Reminder status constants define the possible states of a reminder.
 const (
-	StatusPending    ReminderStatus = "pending"
+	// StatusPending indicates the reminder is waiting to be triggered.
+	StatusPending ReminderStatus = "pending"
+	// StatusProcessing indicates the reminder is currently being processed.
 	StatusProcessing ReminderStatus = "processing"
-	StatusFired      ReminderStatus = "fired"
-	StatusFailed     ReminderStatus = "failed"
-	StatusCancelled  ReminderStatus = "cancelled"
+	// StatusFired indicates the reminder has been successfully triggered.
+	StatusFired ReminderStatus = "fired"
+	// StatusFailed indicates the reminder failed to trigger.
+	StatusFailed ReminderStatus = "failed"
+	// StatusCancelled indicates the reminder was cancelled.
+	StatusCancelled ReminderStatus = "cancelled"
 )
 
 // Reminder represents a scheduled reminder for a GitHub issue or PR

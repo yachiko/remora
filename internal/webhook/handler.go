@@ -1,3 +1,5 @@
+// Package webhook provides handlers for processing GitHub webhook events,
+// including issue comment events for creating and managing reminders.
 package webhook
 
 import (
@@ -14,12 +16,14 @@ import (
 	"go.uber.org/zap"
 )
 
+// Event and action constants for GitHub webhook events.
 const (
-	// Event types
+	// EventIssueComment is the event type for issue comment webhooks.
 	EventIssueComment = "issue_comment"
 
-	// Event actions
+	// ActionCreated is the action for new comments.
 	ActionCreated = "created"
+	// ActionDeleted is the action for deleted comments.
 	ActionDeleted = "deleted"
 )
 
@@ -234,7 +238,7 @@ func (h *Handler) handleCommentCreated(ctx context.Context, requestID string, ev
 }
 
 // handleCommentDeleted processes comment deletion events
-func (h *Handler) handleCommentDeleted(ctx context.Context, requestID string, event *IssueCommentEvent) error {
+func (h *Handler) handleCommentDeleted(_ context.Context, requestID string, event *IssueCommentEvent) error {
 	// Find reminder by comment ID
 	reminder, err := h.repo.FindByCommentID(event.Comment.ID)
 	if err != nil {

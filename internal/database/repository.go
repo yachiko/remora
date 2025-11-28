@@ -108,7 +108,7 @@ func (r *reminderRepository) GetAndLockDueReminders(limit int) ([]*models.Remind
 
 	err := r.db.Transaction(func(tx *gorm.DB) error {
 		// Determine database dialect
-		dialect := tx.Dialector.Name()
+		dialect := tx.Name()
 
 		if dialect == "postgres" || dialect == "mysql" {
 			// Use FOR UPDATE SKIP LOCKED for PostgreSQL and MySQL
@@ -137,23 +137,22 @@ func (r *reminderRepository) GetAndLockDueReminders(limit int) ([]*models.Remind
 
 			// Fetch updated reminders
 			return tx.Where("id IN ?", ids).Find(&reminders).Error
-
-		} else {
-			// SQLite: simple update without SKIP LOCKED
-			if err := tx.Model(&models.Reminder{}).
-				Where("status = ? AND remind_at <= ?", models.StatusPending, time.Now()).
-				Order("remind_at ASC").
-				Limit(limit).
-				Update("status", models.StatusProcessing).Error; err != nil {
-				return err
-			}
-
-			// Fetch updated reminders
-			return tx.Where("status = ?", models.StatusProcessing).
-				Order("remind_at ASC").
-				Limit(limit).
-				Find(&reminders).Error
 		}
+
+		// SQLite: simple update without SKIP LOCKED
+		if err := tx.Model(&models.Reminder{}).
+			Where("status = ? AND remind_at <= ?", models.StatusPending, time.Now()).
+			Order("remind_at ASC").
+			Limit(limit).
+			Update("status", models.StatusProcessing).Error; err != nil {
+			return err
+		}
+
+		// Fetch updated reminders
+		return tx.Where("status = ?", models.StatusProcessing).
+			Order("remind_at ASC").
+			Limit(limit).
+			Find(&reminders).Error
 	})
 
 	return reminders, err

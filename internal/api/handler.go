@@ -1,3 +1,4 @@
+// Package api provides HTTP handlers for the Remora API.
 package api
 
 import (
@@ -11,15 +12,18 @@ import (
 	"go.uber.org/zap"
 )
 
+// Handler provides HTTP handlers for the reminder API.
 type Handler struct {
 	repo   database.ReminderRepository
 	logger *zap.Logger
 }
 
+// NewHandler creates a new Handler with the given repository and logger.
 func NewHandler(repo database.ReminderRepository, logger *zap.Logger) *Handler {
 	return &Handler{repo: repo, logger: logger}
 }
 
+// ListReminders returns a list of reminders matching the query parameters.
 func (h *Handler) ListReminders(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		writeJSONError(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -91,5 +95,5 @@ func (h *Handler) ListReminders(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(response)
+	_ = json.NewEncoder(w).Encode(response)
 }

@@ -1,3 +1,5 @@
+// Package logger provides structured logging functionality for the Remora
+// reminder service using the zap logging library.
 package logger
 
 import (

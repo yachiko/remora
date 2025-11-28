@@ -56,11 +56,61 @@ func TestInitialize(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name: "sqlite with debug logging",
+			cfg: &config.Config{
+				DatabaseType: "sqlite",
+				DatabaseName: ":memory:",
+				LogLevel:     "debug",
+			},
+			wantErr: false,
+		},
+		{
 			name: "unsupported database type",
 			cfg: &config.Config{
 				DatabaseType: "mongodb",
 				DatabaseName: "test",
 				LogLevel:     "error",
+			},
+			wantErr: true,
+		},
+		{
+			name: "postgresql invalid connection",
+			cfg: &config.Config{
+				DatabaseType:     "postgresql",
+				DatabaseHost:     "invalid-host-that-does-not-exist.local",
+				DatabasePort:     5432,
+				DatabaseName:     "remora",
+				DatabaseUser:     "testuser",
+				DatabasePassword: "testpass",
+				DatabaseSSLMode:  "disable",
+				LogLevel:         "error",
+			},
+			wantErr: true,
+		},
+		{
+			name: "postgres alias invalid connection",
+			cfg: &config.Config{
+				DatabaseType:     "postgres",
+				DatabaseHost:     "invalid-host-that-does-not-exist.local",
+				DatabasePort:     5432,
+				DatabaseName:     "remora",
+				DatabaseUser:     "testuser",
+				DatabasePassword: "testpass",
+				DatabaseSSLMode:  "disable",
+				LogLevel:         "error",
+			},
+			wantErr: true,
+		},
+		{
+			name: "mysql invalid connection",
+			cfg: &config.Config{
+				DatabaseType:     "mysql",
+				DatabaseHost:     "invalid-host-that-does-not-exist.local",
+				DatabasePort:     3306,
+				DatabaseName:     "remora",
+				DatabaseUser:     "testuser",
+				DatabasePassword: "testpass",
+				LogLevel:         "error",
 			},
 			wantErr: true,
 		},
@@ -330,5 +380,306 @@ func TestRepositoryGetAndLockDueReminders(t *testing.T) {
 		if r.Status != models.StatusProcessing {
 			t.Errorf("Locked reminder status = %v, want %v", r.Status, models.StatusProcessing)
 		}
+	}
+}
+
+func TestRepositoryFindByCommentID(t *testing.T) {
+	setupTestDB(t)
+	defer teardownTestDB(t)
+
+	repo := NewReminderRepository(DB)
+
+	reminder := &models.Reminder{
+		RepositoryOwner:   "owner",
+		RepositoryName:    "repo",
+		IssueNumber:       123,
+		CommentID:         456789,
+		CommentURL:        "https://github.com/owner/repo/issues/123#issuecomment-456789",
+		RequesterUsername: "user",
+		RequesterID:       789,
+		RemindAt:          time.Now().Add(24 * time.Hour),
+		OriginalCommand:   "remora 1 day",
+		Status:            models.StatusPending,
+	}
+
+	if err := repo.Create(reminder); err != nil {
+		t.Fatalf("Create() failed: %v", err)
+	}
+
+	found, err := repo.FindByCommentID(456789)
+	if err != nil {
+		t.Fatalf("FindByCommentID() failed: %v", err)
+	}
+
+	if found.ID != reminder.ID {
+		t.Errorf("FindByCommentID() ID = %v, want %v", found.ID, reminder.ID)
+	}
+}
+
+func TestRepositoryFindByCommentID_NotFound(t *testing.T) {
+	setupTestDB(t)
+	defer teardownTestDB(t)
+
+	repo := NewReminderRepository(DB)
+
+	_, err := repo.FindByCommentID(999999)
+	if err == nil {
+		t.Error("FindByCommentID() should return error for non-existent comment")
+	}
+}
+
+func TestRepositoryFindByIssue(t *testing.T) {
+	setupTestDB(t)
+	defer teardownTestDB(t)
+
+	repo := NewReminderRepository(DB)
+
+	// Create reminders for same issue
+	for i := 0; i < 3; i++ {
+		reminder := &models.Reminder{
+			RepositoryOwner:   "owner",
+			RepositoryName:    "repo",
+			IssueNumber:       123,
+			CommentID:         int64(100 + i),
+			CommentURL:        "https://github.com/owner/repo/issues/123#issuecomment",
+			RequesterUsername: "user",
+			RequesterID:       789,
+			RemindAt:          time.Now().Add(time.Duration(i+1) * time.Hour),
+			OriginalCommand:   "remora test",
+			Status:            models.StatusPending,
+		}
+		if err := repo.Create(reminder); err != nil {
+			t.Fatalf("Create() failed: %v", err)
+		}
+	}
+
+	// Create reminder for different issue
+	other := &models.Reminder{
+		RepositoryOwner:   "owner",
+		RepositoryName:    "repo",
+		IssueNumber:       456,
+		CommentID:         999,
+		CommentURL:        "https://github.com/owner/repo/issues/456#issuecomment",
+		RequesterUsername: "user",
+		RequesterID:       789,
+		RemindAt:          time.Now().Add(time.Hour),
+		OriginalCommand:   "remora test",
+		Status:            models.StatusPending,
+	}
+	if err := repo.Create(other); err != nil {
+		t.Fatalf("Create() failed: %v", err)
+	}
+
+	found, err := repo.FindByIssue("owner", "repo", 123)
+	if err != nil {
+		t.Fatalf("FindByIssue() failed: %v", err)
+	}
+
+	if len(found) != 3 {
+		t.Errorf("FindByIssue() returned %d reminders, want 3", len(found))
+	}
+}
+
+func TestRepositoryUpdateStatus(t *testing.T) {
+	setupTestDB(t)
+	defer teardownTestDB(t)
+
+	repo := NewReminderRepository(DB)
+
+	reminder := &models.Reminder{
+		RepositoryOwner:   "owner",
+		RepositoryName:    "repo",
+		IssueNumber:       123,
+		CommentID:         456,
+		CommentURL:        "https://github.com/owner/repo/issues/123#issuecomment",
+		RequesterUsername: "user",
+		RequesterID:       789,
+		RemindAt:          time.Now(),
+		OriginalCommand:   "remora now",
+		Status:            models.StatusPending,
+	}
+
+	if err := repo.Create(reminder); err != nil {
+		t.Fatalf("Create() failed: %v", err)
+	}
+
+	if err := repo.UpdateStatus(reminder.ID, models.StatusProcessing); err != nil {
+		t.Fatalf("UpdateStatus() failed: %v", err)
+	}
+
+	updated, err := repo.FindByID(reminder.ID)
+	if err != nil {
+		t.Fatalf("FindByID() failed: %v", err)
+	}
+
+	if updated.Status != models.StatusProcessing {
+		t.Errorf("UpdateStatus() status = %v, want %v", updated.Status, models.StatusProcessing)
+	}
+}
+
+func TestRepositoryMarkFailed(t *testing.T) {
+	setupTestDB(t)
+	defer teardownTestDB(t)
+
+	repo := NewReminderRepository(DB)
+
+	reminder := &models.Reminder{
+		RepositoryOwner:   "owner",
+		RepositoryName:    "repo",
+		IssueNumber:       123,
+		CommentID:         456,
+		CommentURL:        "https://github.com/owner/repo/issues/123#issuecomment",
+		RequesterUsername: "user",
+		RequesterID:       789,
+		RemindAt:          time.Now(),
+		OriginalCommand:   "remora now",
+		Status:            models.StatusProcessing,
+	}
+
+	if err := repo.Create(reminder); err != nil {
+		t.Fatalf("Create() failed: %v", err)
+	}
+
+	errorMsg := "API rate limit exceeded"
+	if err := repo.MarkFailed(reminder.ID, errorMsg); err != nil {
+		t.Fatalf("MarkFailed() failed: %v", err)
+	}
+
+	updated, err := repo.FindByID(reminder.ID)
+	if err != nil {
+		t.Fatalf("FindByID() failed: %v", err)
+	}
+
+	if updated.Status != models.StatusFailed {
+		t.Errorf("MarkFailed() status = %v, want %v", updated.Status, models.StatusFailed)
+	}
+
+	if updated.ErrorMessage != errorMsg {
+		t.Errorf("MarkFailed() error_message = %v, want %v", updated.ErrorMessage, errorMsg)
+	}
+}
+
+func TestRepositoryIncrementRetry(t *testing.T) {
+	setupTestDB(t)
+	defer teardownTestDB(t)
+
+	repo := NewReminderRepository(DB)
+
+	reminder := &models.Reminder{
+		RepositoryOwner:   "owner",
+		RepositoryName:    "repo",
+		IssueNumber:       123,
+		CommentID:         456,
+		CommentURL:        "https://github.com/owner/repo/issues/123#issuecomment",
+		RequesterUsername: "user",
+		RequesterID:       789,
+		RemindAt:          time.Now(),
+		OriginalCommand:   "remora now",
+		Status:            models.StatusProcessing,
+		RetryCount:        0,
+	}
+
+	if err := repo.Create(reminder); err != nil {
+		t.Fatalf("Create() failed: %v", err)
+	}
+
+	if err := repo.IncrementRetry(reminder.ID); err != nil {
+		t.Fatalf("IncrementRetry() failed: %v", err)
+	}
+
+	updated, err := repo.FindByID(reminder.ID)
+	if err != nil {
+		t.Fatalf("FindByID() failed: %v", err)
+	}
+
+	if updated.Status != models.StatusPending {
+		t.Errorf("IncrementRetry() status = %v, want %v", updated.Status, models.StatusPending)
+	}
+
+	if updated.RetryCount != 1 {
+		t.Errorf("IncrementRetry() retry_count = %v, want 1", updated.RetryCount)
+	}
+}
+
+func TestRepositoryCancel(t *testing.T) {
+	setupTestDB(t)
+	defer teardownTestDB(t)
+
+	repo := NewReminderRepository(DB)
+
+	reminder := &models.Reminder{
+		RepositoryOwner:   "owner",
+		RepositoryName:    "repo",
+		IssueNumber:       123,
+		CommentID:         456,
+		CommentURL:        "https://github.com/owner/repo/issues/123#issuecomment",
+		RequesterUsername: "user",
+		RequesterID:       789,
+		RemindAt:          time.Now().Add(time.Hour),
+		OriginalCommand:   "remora 1 hour",
+		Status:            models.StatusPending,
+	}
+
+	if err := repo.Create(reminder); err != nil {
+		t.Fatalf("Create() failed: %v", err)
+	}
+
+	if err := repo.Cancel(456); err != nil {
+		t.Fatalf("Cancel() failed: %v", err)
+	}
+
+	updated, err := repo.FindByID(reminder.ID)
+	if err != nil {
+		t.Fatalf("FindByID() failed: %v", err)
+	}
+
+	if updated.Status != models.StatusCancelled {
+		t.Errorf("Cancel() status = %v, want %v", updated.Status, models.StatusCancelled)
+	}
+}
+
+func TestRepositoryDelete(t *testing.T) {
+	setupTestDB(t)
+	defer teardownTestDB(t)
+
+	repo := NewReminderRepository(DB)
+
+	reminder := &models.Reminder{
+		RepositoryOwner:   "owner",
+		RepositoryName:    "repo",
+		IssueNumber:       123,
+		CommentID:         456,
+		CommentURL:        "https://github.com/owner/repo/issues/123#issuecomment",
+		RequesterUsername: "user",
+		RequesterID:       789,
+		RemindAt:          time.Now(),
+		OriginalCommand:   "remora now",
+		Status:            models.StatusPending,
+	}
+
+	if err := repo.Create(reminder); err != nil {
+		t.Fatalf("Create() failed: %v", err)
+	}
+
+	if err := repo.Delete(reminder.ID); err != nil {
+		t.Fatalf("Delete() failed: %v", err)
+	}
+
+	// Soft delete - should not find with standard query
+	_, err := repo.FindByID(reminder.ID)
+	if err == nil {
+		t.Error("Delete() should make record unfindable")
+	}
+}
+
+func TestRepositoryFindByID_NotFound(t *testing.T) {
+	setupTestDB(t)
+	defer teardownTestDB(t)
+
+	repo := NewReminderRepository(DB)
+
+	_, err := repo.FindByID(999999)
+	if err == nil {
+		t.Error("FindByID() should return error for non-existent ID")
 	}
 }

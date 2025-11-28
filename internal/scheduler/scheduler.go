@@ -1,3 +1,5 @@
+// Package scheduler provides the reminder processing scheduler that periodically
+// checks for due reminders and triggers them by posting comments to GitHub.
 package scheduler
 
 import (

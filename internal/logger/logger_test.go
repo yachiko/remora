@@ -63,7 +63,7 @@ func TestInitialize(t *testing.T) {
 
 			// Clean up
 			if Logger != nil {
-				Logger.Sync()
+				_ = Logger.Sync()
 				Logger = nil
 			}
 		})
@@ -115,7 +115,7 @@ func TestLoggerHelperFunctions(t *testing.T) {
 	)
 	Logger = zap.New(core)
 	defer func() {
-		Logger.Sync()
+		_ = Logger.Sync()
 		Logger = nil
 	}()
 
@@ -173,7 +173,7 @@ func TestWith(t *testing.T) {
 	)
 	Logger = zap.New(core)
 	defer func() {
-		Logger.Sync()
+		_ = Logger.Sync()
 		Logger = nil
 	}()
 
@@ -203,7 +203,7 @@ func TestComponent(t *testing.T) {
 	)
 	Logger = zap.New(core)
 	defer func() {
-		Logger.Sync()
+		_ = Logger.Sync()
 		Logger = nil
 	}()
 
@@ -230,7 +230,7 @@ func TestProductionFormat(t *testing.T) {
 		t.Fatalf("Initialize() failed: %v", err)
 	}
 	defer func() {
-		Logger.Sync()
+		_ = Logger.Sync()
 		Logger = nil
 	}()
 
@@ -271,7 +271,7 @@ func TestDevelopmentFormat(t *testing.T) {
 		t.Fatalf("Initialize() failed: %v", err)
 	}
 	defer func() {
-		Logger.Sync()
+		_ = Logger.Sync()
 		Logger = nil
 	}()
 
@@ -318,7 +318,7 @@ func TestSync(t *testing.T) {
 	defer func() { Logger = nil }()
 
 	// Test Sync with initialized logger
-	err = Sync()
+	_ = Sync()
 	// Note: Sync() may return "sync /dev/stderr: inappropriate ioctl for device" on some systems
 	// This is expected and not an actual error
 	// We just verify it doesn't panic

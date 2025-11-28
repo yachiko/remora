@@ -1,3 +1,4 @@
+// Package main is the entry point for the Remora GitHub reminder bot service.
 package main
 
 import (
@@ -49,7 +50,9 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Failed to initialize logger: %v\n", err)
 		os.Exit(1)
 	}
-	defer logger.Logger.Sync()
+	defer func() {
+		_ = logger.Logger.Sync()
+	}()
 
 	logger.Info("starting Remora",
 		zap.String("version", Version),
@@ -170,7 +173,7 @@ func main() {
 		if err := server.Shutdown(shutdownCtx); err != nil {
 			logger.Error("error during server shutdown", zap.Error(err))
 			// Force close
-			server.Close()
+			_ = server.Close()
 		}
 
 		logger.Info("shutdown complete")
@@ -202,7 +205,7 @@ func healthHandler(db *gorm.DB, log *zap.Logger) http.HandlerFunc {
 		// Return healthy response
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"status":    "healthy",
 			"version":   Version,
 			"timestamp": time.Now().UTC().Format(time.RFC3339),
@@ -211,7 +214,7 @@ func healthHandler(db *gorm.DB, log *zap.Logger) http.HandlerFunc {
 }
 
 // readinessHandler returns a readiness check handler
-func readinessHandler(db *gorm.DB, sched *scheduler.Scheduler, log *zap.Logger) http.HandlerFunc {
+func readinessHandler(db *gorm.DB, _ *scheduler.Scheduler, log *zap.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -235,7 +238,7 @@ func readinessHandler(db *gorm.DB, sched *scheduler.Scheduler, log *zap.Logger) 
 		// Return ready response
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"status":    "ready",
 			"version":   Version,
 			"timestamp": time.Now().UTC().Format(time.RFC3339),
@@ -280,7 +283,7 @@ func (rw *responseWriter) WriteHeader(code int) {
 func writeJSONError(w http.ResponseWriter, message string, statusCode int) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
 		"error":     message,
 		"timestamp": time.Now().UTC().Format(time.RFC3339),
 	})

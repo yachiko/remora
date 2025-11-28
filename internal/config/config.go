@@ -1,3 +1,5 @@
+// Package config provides configuration loading and validation for the Remora
+// reminder service from environment variables.
 package config
 
 import (
@@ -6,6 +8,13 @@ import (
 	"os"
 	"strconv"
 	"strings"
+)
+
+// Database type constants for supported database drivers.
+const (
+	DatabaseTypePostgres = "postgresql"
+	DatabaseTypeMySQL    = "mysql"
+	DatabaseTypeSQLite   = "sqlite"
 )
 
 // Config holds all application configuration
@@ -104,7 +113,7 @@ func (c *Config) Validate() error {
 	}
 
 	// For PostgreSQL and MySQL, validate required fields
-	if c.DatabaseType == "postgresql" || c.DatabaseType == "mysql" {
+	if c.DatabaseType == DatabaseTypePostgres || c.DatabaseType == DatabaseTypeMySQL {
 		if c.DatabaseHost == "" {
 			errs = append(errs, errors.New("DATABASE_HOST is required for postgresql/mysql"))
 		}
@@ -116,7 +125,7 @@ func (c *Config) Validate() error {
 		}
 		if c.DatabasePort == 0 {
 			// Set default port if not specified
-			if c.DatabaseType == "postgresql" {
+			if c.DatabaseType == DatabaseTypePostgres {
 				c.DatabasePort = 5432
 			} else {
 				c.DatabasePort = 3306
@@ -191,13 +200,13 @@ func (e *ValidationError) Error() string {
 // DatabaseURL constructs the database connection URL from individual components
 func (c *Config) DatabaseURL() string {
 	switch c.DatabaseType {
-	case "postgresql":
+	case DatabaseTypePostgres:
 		return fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
 			c.DatabaseHost, c.DatabasePort, c.DatabaseUser, c.DatabasePassword, c.DatabaseName, c.DatabaseSSLMode)
-	case "mysql":
+	case DatabaseTypeMySQL:
 		return fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?parseTime=true",
 			c.DatabaseUser, c.DatabasePassword, c.DatabaseHost, c.DatabasePort, c.DatabaseName)
-	case "sqlite":
+	case DatabaseTypeSQLite:
 		// For SQLite, use DatabaseName as the file path
 		if c.DatabaseName == "" {
 			return "./remora.db"
@@ -254,7 +263,7 @@ func getEnvAsBool(key string, defaultValue bool) bool {
 }
 
 func isValidDatabaseType(dbType string) bool {
-	validTypes := []string{"postgresql", "mysql", "sqlite"}
+	validTypes := []string{DatabaseTypePostgres, DatabaseTypeMySQL, DatabaseTypeSQLite}
 	for _, t := range validTypes {
 		if dbType == t {
 			return true

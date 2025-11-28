@@ -42,7 +42,7 @@ func TestAuthMiddleware(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			nextCalled := false
-			next := func(w http.ResponseWriter, r *http.Request) {
+			next := func(w http.ResponseWriter, _ *http.Request) {
 				nextCalled = true
 				w.WriteHeader(http.StatusOK)
 			}
@@ -61,7 +61,7 @@ func TestAuthMiddleware(t *testing.T) {
 
 			if tt.expectedError != "" {
 				var response map[string]interface{}
-				json.Unmarshal(rr.Body.Bytes(), &response)
+				_ = json.Unmarshal(rr.Body.Bytes(), &response)
 				assert.Equal(t, tt.expectedError, response["error"])
 				assert.False(t, nextCalled)
 			} else {

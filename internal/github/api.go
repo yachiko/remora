@@ -1,3 +1,5 @@
+// Package github provides a client for interacting with the GitHub API,
+// including support for GitHub App authentication and retry logic.
 package github
 
 import (
@@ -14,12 +16,18 @@ import (
 // ReactionType represents GitHub reaction types
 type ReactionType string
 
+// Reaction constants define the supported GitHub reactions.
 const (
-	ReactionEyes     ReactionType = "eyes"     // 👀 - Processing
-	ReactionHooray   ReactionType = "hooray"   // 🎉 - Success
-	ReactionConfused ReactionType = "confused" // 😕 - Error
-	ReactionPlusOne  ReactionType = "+1"       // 👍 - Alternative success
-	ReactionMinusOne ReactionType = "-1"       // 👎 - Alternative error
+	// ReactionEyes represents the 👀 (eyes) reaction, used to indicate processing.
+	ReactionEyes ReactionType = "eyes"
+	// ReactionHooray represents the 🎉 (hooray) reaction, used to indicate success.
+	ReactionHooray ReactionType = "hooray"
+	// ReactionConfused represents the 😕 (confused) reaction, used to indicate an error.
+	ReactionConfused ReactionType = "confused"
+	// ReactionPlusOne represents the 👍 (+1) reaction, an alternative success indicator.
+	ReactionPlusOne ReactionType = "+1"
+	// ReactionMinusOne represents the 👎 (-1) reaction, an alternative error indicator.
+	ReactionMinusOne ReactionType = "-1"
 )
 
 // AddReaction adds a reaction to a comment
@@ -176,7 +184,7 @@ func formatDuration(d time.Duration) string {
 
 	if hours >= 24 {
 		days := hours / 24
-		hours = hours % 24
+		hours %= 24
 		if hours > 0 {
 			return fmt.Sprintf("%d day%s %d hour%s", days, plural(days), hours, plural(hours))
 		}

@@ -90,19 +90,19 @@ func TestDoRequestWithRetry_Success(t *testing.T) {
 	client := NewClient(12345, privateKey, logger)
 
 	callCount := 0
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		callCount++
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 	}))
 	defer server.Close()
 
 	client.baseURL = server.URL
 
-	req, _ := http.NewRequest("GET", server.URL+"/test", nil)
+	ctx := context.Background()
+	req, _ := http.NewRequestWithContext(ctx, "GET", server.URL+"/test", nil)
 	var result map[string]string
 
-	ctx := context.Background()
 	err := client.doRequestWithRetry(ctx, req, &result)
 
 	if err != nil {
@@ -127,24 +127,24 @@ func TestDoRequestWithRetry_EventualSuccess(t *testing.T) {
 	client.retryConfig.MaxBackoff = 100 * time.Millisecond
 
 	callCount := 0
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		callCount++
 		if callCount < 3 {
 			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(map[string]string{"message": "server error"})
+			_ = json.NewEncoder(w).Encode(map[string]string{"message": "server error"})
 		} else {
 			w.WriteHeader(http.StatusOK)
-			json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+			_ = json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 		}
 	}))
 	defer server.Close()
 
 	client.baseURL = server.URL
 
-	req, _ := http.NewRequest("GET", server.URL+"/test", nil)
+	ctx := context.Background()
+	req, _ := http.NewRequestWithContext(ctx, "GET", server.URL+"/test", nil)
 	var result map[string]string
 
-	ctx := context.Background()
 	err := client.doRequestWithRetry(ctx, req, &result)
 
 	if err != nil {
@@ -170,19 +170,19 @@ func TestDoRequestWithRetry_MaxAttemptsReached(t *testing.T) {
 	client.retryConfig.MaxAttempts = 3
 
 	callCount := 0
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		callCount++
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]string{"message": "persistent error"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"message": "persistent error"})
 	}))
 	defer server.Close()
 
 	client.baseURL = server.URL
 
-	req, _ := http.NewRequest("GET", server.URL+"/test", nil)
+	ctx := context.Background()
+	req, _ := http.NewRequestWithContext(ctx, "GET", server.URL+"/test", nil)
 	var result map[string]string
 
-	ctx := context.Background()
 	err := client.doRequestWithRetry(ctx, req, &result)
 
 	if err == nil {
@@ -209,19 +209,19 @@ func TestDoRequestWithRetry_NonRetryableError(t *testing.T) {
 	client := NewClient(12345, privateKey, logger)
 
 	callCount := 0
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		callCount++
 		w.WriteHeader(http.StatusNotFound)
-		json.NewEncoder(w).Encode(map[string]string{"message": "not found"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"message": "not found"})
 	}))
 	defer server.Close()
 
 	client.baseURL = server.URL
 
-	req, _ := http.NewRequest("GET", server.URL+"/test", nil)
+	ctx := context.Background()
+	req, _ := http.NewRequestWithContext(ctx, "GET", server.URL+"/test", nil)
 	var result map[string]string
 
-	ctx := context.Background()
 	err := client.doRequestWithRetry(ctx, req, &result)
 
 	if err == nil {
@@ -250,7 +250,7 @@ func TestDoRequestWithRetry_ContextCancellation(t *testing.T) {
 	client.retryConfig.InitialBackoff = 100 * time.Millisecond
 
 	callCount := 0
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		callCount++
 		w.WriteHeader(http.StatusInternalServerError)
 	}))
@@ -258,10 +258,9 @@ func TestDoRequestWithRetry_ContextCancellation(t *testing.T) {
 
 	client.baseURL = server.URL
 
-	req, _ := http.NewRequest("GET", server.URL+"/test", nil)
-	var result map[string]string
-
 	ctx, cancel := context.WithCancel(context.Background())
+	req, _ := http.NewRequestWithContext(ctx, "GET", server.URL+"/test", nil)
+	var result map[string]string
 
 	errChan := make(chan error, 1)
 	go func() {

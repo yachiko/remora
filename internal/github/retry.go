@@ -124,12 +124,14 @@ func (c *Client) doRequestWithRetry(ctx context.Context, req *http.Request, resu
 }
 
 // doRequest executes a single HTTP request
-func (c *Client) doRequest(ctx context.Context, req *http.Request, result interface{}) error {
+func (c *Client) doRequest(_ context.Context, req *http.Request, result interface{}) error {
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 
 	// Update rate limit info
 	c.updateRateLimitInfo(resp)
@@ -146,7 +148,7 @@ func (c *Client) doRequest(ctx context.Context, req *http.Request, result interf
 		var errorResp struct {
 			Message string `json:"message"`
 		}
-		json.Unmarshal(body, &errorResp)
+		_ = json.Unmarshal(body, &errorResp)
 
 		message := errorResp.Message
 		if message == "" {

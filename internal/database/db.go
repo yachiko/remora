@@ -1,3 +1,5 @@
+// Package database provides database connectivity and repository implementations
+// for the Remora reminder service.
 package database
 
 import (

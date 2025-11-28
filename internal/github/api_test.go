@@ -12,18 +12,24 @@ import (
 	"go.uber.org/zap"
 )
 
+// Test constants for API paths
+const (
+	testInstallationTokenPath = "/app/installations/123/access_tokens" //nolint:gosec // Test URL path, not a credential
+	testReactionsPath         = "/repos/owner/repo/issues/comments/456/reactions"
+)
+
 func setupTestClient(t *testing.T) (*Client, *httptest.Server) {
 	logger := zap.NewNop()
 	privateKey := generateTestPrivateKey(t)
 	client := NewClient(12345, privateKey, logger)
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/app/installations/123/access_tokens" {
+		if r.URL.Path == testInstallationTokenPath {
 			response := map[string]interface{}{
 				"token":      "ghs_test_token",
 				"expires_at": time.Now().Add(1 * time.Hour).Format(time.RFC3339),
 			}
-			json.NewEncoder(w).Encode(response)
+			_ = json.NewEncoder(w).Encode(response)
 			return
 		}
 		w.WriteHeader(http.StatusNotFound)
@@ -41,22 +47,22 @@ func TestAddReaction_Success(t *testing.T) {
 
 	reactionReceived := false
 	server.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/app/installations/123/access_tokens" {
+		if r.URL.Path == testInstallationTokenPath {
 			response := map[string]interface{}{
 				"token":      "ghs_test_token",
 				"expires_at": time.Now().Add(1 * time.Hour).Format(time.RFC3339),
 			}
-			json.NewEncoder(w).Encode(response)
+			_ = json.NewEncoder(w).Encode(response)
 			return
 		}
 
-		if r.URL.Path == "/repos/owner/repo/issues/comments/456/reactions" {
+		if r.URL.Path == testReactionsPath {
 			if r.Method != "POST" {
 				t.Errorf("expected POST method, got %s", r.Method)
 			}
 
 			var payload map[string]string
-			json.NewDecoder(r.Body).Decode(&payload)
+			_ = json.NewDecoder(r.Body).Decode(&payload)
 
 			if payload["content"] != "eyes" {
 				t.Errorf("expected reaction 'eyes', got %s", payload["content"])
@@ -68,7 +74,7 @@ func TestAddReaction_Success(t *testing.T) {
 				"id":      789,
 				"content": "eyes",
 			}
-			json.NewEncoder(w).Encode(response)
+			_ = json.NewEncoder(w).Encode(response)
 			return
 		}
 
@@ -103,22 +109,22 @@ func TestAddReaction_AllTypes(t *testing.T) {
 
 			receivedReaction := ""
 			server.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				if r.URL.Path == "/app/installations/123/access_tokens" {
+				if r.URL.Path == testInstallationTokenPath {
 					response := map[string]interface{}{
 						"token":      "ghs_test_token",
 						"expires_at": time.Now().Add(1 * time.Hour).Format(time.RFC3339),
 					}
-					json.NewEncoder(w).Encode(response)
+					_ = json.NewEncoder(w).Encode(response)
 					return
 				}
 
-				if r.URL.Path == "/repos/owner/repo/issues/comments/456/reactions" {
+				if r.URL.Path == testReactionsPath {
 					var payload map[string]string
-					json.NewDecoder(r.Body).Decode(&payload)
+					_ = json.NewDecoder(r.Body).Decode(&payload)
 					receivedReaction = payload["content"]
 
 					w.WriteHeader(http.StatusCreated)
-					json.NewEncoder(w).Encode(map[string]interface{}{
+					_ = json.NewEncoder(w).Encode(map[string]interface{}{
 						"id":      789,
 						"content": receivedReaction,
 					})
@@ -148,12 +154,12 @@ func TestPostComment_Success(t *testing.T) {
 	expectedBody := "@alice reminder test"
 
 	server.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/app/installations/123/access_tokens" {
+		if r.URL.Path == testInstallationTokenPath {
 			response := map[string]interface{}{
 				"token":      "ghs_test_token",
 				"expires_at": time.Now().Add(1 * time.Hour).Format(time.RFC3339),
 			}
-			json.NewEncoder(w).Encode(response)
+			_ = json.NewEncoder(w).Encode(response)
 			return
 		}
 
@@ -163,7 +169,7 @@ func TestPostComment_Success(t *testing.T) {
 			}
 
 			var payload map[string]string
-			json.NewDecoder(r.Body).Decode(&payload)
+			_ = json.NewDecoder(r.Body).Decode(&payload)
 
 			if payload["body"] != expectedBody {
 				t.Errorf("expected body %q, got %q", expectedBody, payload["body"])
@@ -175,7 +181,7 @@ func TestPostComment_Success(t *testing.T) {
 				"id":       999,
 				"html_url": "https://github.com/owner/repo/issues/42#issuecomment-999",
 			}
-			json.NewEncoder(w).Encode(response)
+			_ = json.NewEncoder(w).Encode(response)
 			return
 		}
 
@@ -253,23 +259,23 @@ func TestAPIError_401_TokenInvalidation(t *testing.T) {
 	attemptCount := 0
 
 	server.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/app/installations/123/access_tokens" {
+		if r.URL.Path == testInstallationTokenPath {
 			response := map[string]interface{}{
 				"token":      "ghs_test_token",
 				"expires_at": time.Now().Add(1 * time.Hour).Format(time.RFC3339),
 			}
-			json.NewEncoder(w).Encode(response)
+			_ = json.NewEncoder(w).Encode(response)
 			return
 		}
 
-		if r.URL.Path == "/repos/owner/repo/issues/comments/456/reactions" {
+		if r.URL.Path == testReactionsPath {
 			attemptCount++
 			if attemptCount == 1 {
 				w.WriteHeader(http.StatusUnauthorized)
-				json.NewEncoder(w).Encode(map[string]string{"message": "Bad credentials"})
+				_ = json.NewEncoder(w).Encode(map[string]string{"message": "Bad credentials"})
 			} else {
 				w.WriteHeader(http.StatusCreated)
-				json.NewEncoder(w).Encode(map[string]interface{}{"id": 789})
+				_ = json.NewEncoder(w).Encode(map[string]interface{}{"id": 789})
 			}
 			return
 		}

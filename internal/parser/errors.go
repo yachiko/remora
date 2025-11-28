@@ -1,3 +1,5 @@
+// Package parser provides natural language time parsing and command extraction
+// for the Remora reminder service.
 package parser
 
 import (
@@ -111,6 +113,9 @@ func (e *ParseError) GetUserFacingMessage(username string) string {
 
 	case ErrorTypeTooFar:
 		return fmt.Sprintf("@%s I couldn't set your reminder because it's too far in the future.\n\nReminders can be set up to 13 months (395 days) in advance.\n\n%s\n\nPlease use a shorter timeframe or set a reminder closer to the date.", username, e.Details)
+
+	case ErrorTypeNoCommand:
+		return fmt.Sprintf("@%s No remora command was found in your comment.\n\nPlease use the format: `remora <time-expression>`\n\nExamples:\n- remora 2 days\n- remora tomorrow at 3pm\n- remora next Monday 9am EST", username)
 
 	case ErrorTypeInvalidTimezone:
 		return fmt.Sprintf("@%s I couldn't parse the timezone in your reminder request.\n\n%s\n\nPlease use a valid timezone abbreviation (EST, PST, UTC) or IANA timezone name (America/New_York, Europe/London).\n\nExamples:\n- remora 2 days EST\n- remora tomorrow 3pm PST\n- remora next Monday 9am America/New_York", username, e.Details)
