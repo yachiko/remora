@@ -17,11 +17,11 @@ func setupTestDB(t *testing.T) {
 		t.Fatalf("Failed to initialize logger: %v", err)
 	}
 
-	// Use SQLite for testing
+	// Use SQLite in-memory for testing
 	cfg := &config.Config{
-		DatabaseType: "sqlite",
-		DatabaseName: ":memory:",
-		LogLevel:     "error",
+		DatabaseType:       "sqlite",
+		DatabaseSQLitePath: ":memory:",
+		LogLevel:           "error",
 	}
 
 	if err := Initialize(cfg); err != nil {
@@ -49,18 +49,18 @@ func TestInitialize(t *testing.T) {
 		{
 			name: "sqlite in-memory",
 			cfg: &config.Config{
-				DatabaseType: "sqlite",
-				DatabaseName: ":memory:",
-				LogLevel:     "error",
+				DatabaseType:       "sqlite",
+				DatabaseSQLitePath: ":memory:",
+				LogLevel:           "error",
 			},
 			wantErr: false,
 		},
 		{
 			name: "sqlite with debug logging",
 			cfg: &config.Config{
-				DatabaseType: "sqlite",
-				DatabaseName: ":memory:",
-				LogLevel:     "debug",
+				DatabaseType:       "sqlite",
+				DatabaseSQLitePath: ":memory:",
+				LogLevel:           "debug",
 			},
 			wantErr: false,
 		},

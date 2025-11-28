@@ -79,9 +79,9 @@ func setupIntegrationTest(t *testing.T) (database.ReminderRepository, func()) {
 
 	// Initialize database with SQLite
 	cfg := &config.Config{
-		DatabaseType: "sqlite",
-		DatabaseName: ":memory:",
-		LogLevel:     "error",
+		DatabaseType:       "sqlite",
+		DatabaseSQLitePath: ":memory:",
+		LogLevel:           "error",
 	}
 
 	if err := database.Initialize(cfg); err != nil {

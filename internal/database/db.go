@@ -44,9 +44,9 @@ func Initialize(cfg *config.Config) error {
 		logger.Info("connecting to mysql", zap.String("host", cfg.DatabaseHost))
 
 	case "sqlite":
-		dsn := cfg.DatabaseName
+		dsn := cfg.DatabaseURL()
 		dialector = sqlite.Open(dsn)
-		logger.Info("connecting to sqlite", zap.String("file", cfg.DatabaseName))
+		logger.Info("connecting to sqlite", zap.String("file", cfg.DatabaseSQLitePath))
 
 	default:
 		return fmt.Errorf("unsupported database type: %s", cfg.DatabaseType)

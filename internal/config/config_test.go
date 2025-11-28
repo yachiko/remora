@@ -460,18 +460,18 @@ func TestDatabaseURL(t *testing.T) {
 		{
 			name: "sqlite with path",
 			config: &Config{
-				DatabaseType: "sqlite",
-				DatabaseName: "/var/data/remora.db",
+				DatabaseType:       "sqlite",
+				DatabaseSQLitePath: "/var/data/remora.db",
 			},
 			want: "/var/data/remora.db",
 		},
 		{
 			name: "sqlite without path",
 			config: &Config{
-				DatabaseType: "sqlite",
-				DatabaseName: "",
+				DatabaseType:       "sqlite",
+				DatabaseSQLitePath: "",
 			},
-			want: "./remora.db",
+			want: "./data/remora.db",
 		},
 		{
 			name: "unknown database type",

@@ -20,13 +20,14 @@ const (
 // Config holds all application configuration
 type Config struct {
 	// Database configuration
-	DatabaseType     string
-	DatabaseHost     string
-	DatabasePort     int
-	DatabaseName     string
-	DatabaseUser     string
-	DatabasePassword string
-	DatabaseSSLMode  string // For PostgreSQL: disable, require, verify-ca, verify-full
+	DatabaseType       string
+	DatabaseHost       string
+	DatabasePort       int
+	DatabaseName       string
+	DatabaseUser       string
+	DatabasePassword   string
+	DatabaseSSLMode    string // For PostgreSQL: disable, require, verify-ca, verify-full
+	DatabaseSQLitePath string // File path for SQLite database
 
 	// HTTP server configuration
 	Port        int
@@ -62,13 +63,14 @@ type Config struct {
 // Load reads configuration from environment variables
 func Load() (*Config, error) {
 	cfg := &Config{
-		DatabaseType:     getEnv("DATABASE_TYPE", "sqlite"),
-		DatabaseHost:     getEnv("DATABASE_HOST", ""),
-		DatabasePort:     getEnvAsInt("DATABASE_PORT", 0),
-		DatabaseName:     getEnv("DATABASE_NAME", ""),
-		DatabaseUser:     getEnv("DATABASE_USER", ""),
-		DatabasePassword: getEnv("DATABASE_PASSWORD", ""),
-		DatabaseSSLMode:  getEnv("DATABASE_SSLMODE", "disable"),
+		DatabaseType:       getEnv("DATABASE_TYPE", "sqlite"),
+		DatabaseHost:       getEnv("DATABASE_HOST", ""),
+		DatabasePort:       getEnvAsInt("DATABASE_PORT", 0),
+		DatabaseName:       getEnv("DATABASE_NAME", ""),
+		DatabaseUser:       getEnv("DATABASE_USER", ""),
+		DatabasePassword:   getEnv("DATABASE_PASSWORD", ""),
+		DatabaseSSLMode:    getEnv("DATABASE_SSLMODE", "disable"),
+		DatabaseSQLitePath: getEnv("DATABASE_SQLITE_PATH", "./data/remora.db"),
 
 		Port:        getEnvAsInt("REMORA_PORT", 8080),
 		WebhookPath: getEnv("REMORA_WEBHOOK_PATH", "/webhook"),
@@ -207,11 +209,11 @@ func (c *Config) DatabaseURL() string {
 		return fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?parseTime=true",
 			c.DatabaseUser, c.DatabasePassword, c.DatabaseHost, c.DatabasePort, c.DatabaseName)
 	case DatabaseTypeSQLite:
-		// For SQLite, use DatabaseName as the file path
-		if c.DatabaseName == "" {
-			return "./remora.db"
+		// For SQLite, use DatabaseSQLitePath
+		if c.DatabaseSQLitePath == "" {
+			return "./data/remora.db"
 		}
-		return c.DatabaseName
+		return c.DatabaseSQLitePath
 	default:
 		return ""
 	}
