@@ -72,19 +72,32 @@ func (m *MockGitHubClient) PostComment(_ context.Context, installationID int64, 
 func setupIntegrationTest(t *testing.T) (database.ReminderRepository, func()) {
 	t.Helper()
 
-	// Initialize logger
-	if err := logger.Initialize("development", "error"); err != nil {
+	// Initialize logger (set to fatal to suppress expected error logs in tests)
+	if err := logger.Initialize("development", "fatal"); err != nil {
 		t.Fatalf("Failed to initialize logger: %v", err)
 	}
 
+	// Create a unique temp file for the database to avoid sharing state
+	// between tests and issues with :memory: databases
+	tempFile, err := os.CreateTemp("", "webhook_integration_test_*.db")
+	if err != nil {
+		t.Fatalf("Failed to create temp file: %v", err)
+	}
+	dbPath := tempFile.Name()
+	_ = tempFile.Close()
+
 	// Initialize database with SQLite
 	cfg := &config.Config{
-		DatabaseType:       "sqlite",
-		DatabaseSQLitePath: ":memory:",
-		LogLevel:           "error",
+		DatabaseType:            "sqlite",
+		DatabaseSQLitePath:      dbPath,
+		DatabaseMaxOpenConns:    25,
+		DatabaseMaxIdleConns:    5,
+		DatabaseConnMaxLifetime: 300,
+		LogLevel:                "error",
 	}
 
 	if err := database.Initialize(cfg); err != nil {
+		_ = os.Remove(dbPath)
 		t.Fatalf("Failed to initialize database: %v", err)
 	}
 
@@ -94,6 +107,7 @@ func setupIntegrationTest(t *testing.T) (database.ReminderRepository, func()) {
 		if err := database.Close(); err != nil {
 			t.Errorf("Failed to close database: %v", err)
 		}
+		_ = os.Remove(dbPath)
 	}
 
 	return repo, cleanup
