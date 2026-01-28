@@ -66,14 +66,15 @@ func Initialize(cfg *config.Config) error {
 		return fmt.Errorf("failed to get database instance: %w", err)
 	}
 
-	sqlDB.SetMaxIdleConns(10)
-	sqlDB.SetMaxOpenConns(100)
-	sqlDB.SetConnMaxLifetime(time.Hour)
+	sqlDB.SetMaxIdleConns(cfg.DatabaseMaxIdleConns)
+	sqlDB.SetMaxOpenConns(cfg.DatabaseMaxOpenConns)
+	sqlDB.SetConnMaxLifetime(time.Duration(cfg.DatabaseConnMaxLifetime) * time.Second)
 	sqlDB.SetConnMaxIdleTime(10 * time.Minute)
 
 	logger.Info("database connection pool configured",
-		zap.Int("max_idle_conns", 10),
-		zap.Int("max_open_conns", 100))
+		zap.Int("max_idle_conns", cfg.DatabaseMaxIdleConns),
+		zap.Int("max_open_conns", cfg.DatabaseMaxOpenConns),
+		zap.Int("conn_max_lifetime_sec", cfg.DatabaseConnMaxLifetime))
 
 	// Run auto-migration
 	if err := AutoMigrate(); err != nil {

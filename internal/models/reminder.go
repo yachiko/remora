@@ -74,6 +74,9 @@ func (r *Reminder) IsValid() bool {
 	if r.CommentID <= 0 {
 		return false
 	}
+	if r.InstallationID <= 0 {
+		return false
+	}
 	if r.RequesterUsername == "" || r.RequesterID <= 0 {
 		return false
 	}

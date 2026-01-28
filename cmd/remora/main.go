@@ -121,9 +121,12 @@ func main() {
 			zap.String("endpoint", "/api/v1/reminders"))
 	}
 
+	// Wrap mux with middlewares
+	handler := api.RequestIDMiddleware(loggingMiddleware(mux, logger.Logger))
+
 	server := &http.Server{
 		Addr:         fmt.Sprintf(":%d", cfg.Port),
-		Handler:      loggingMiddleware(mux, logger.Logger),
+		Handler:      handler,
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 10 * time.Second,
 		IdleTimeout:  60 * time.Second,

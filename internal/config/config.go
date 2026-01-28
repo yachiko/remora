@@ -29,6 +29,11 @@ type Config struct {
 	DatabaseSSLMode    string // For PostgreSQL: disable, require, verify-ca, verify-full
 	DatabaseSQLitePath string // File path for SQLite database
 
+	// Database connection pool
+	DatabaseMaxOpenConns    int
+	DatabaseMaxIdleConns    int
+	DatabaseConnMaxLifetime int // seconds
+
 	// HTTP server configuration
 	Port        int
 	WebhookPath string
@@ -71,6 +76,10 @@ func Load() (*Config, error) {
 		DatabasePassword:   getEnv("DATABASE_PASSWORD", ""),
 		DatabaseSSLMode:    getEnv("DATABASE_SSLMODE", "disable"),
 		DatabaseSQLitePath: getEnv("DATABASE_SQLITE_PATH", "./data/remora.db"),
+
+		DatabaseMaxOpenConns:    getEnvAsInt("DATABASE_MAX_OPEN_CONNS", 25),
+		DatabaseMaxIdleConns:    getEnvAsInt("DATABASE_MAX_IDLE_CONNS", 5),
+		DatabaseConnMaxLifetime: getEnvAsInt("DATABASE_CONN_MAX_LIFETIME", 300),
 
 		Port:        getEnvAsInt("REMORA_PORT", 8080),
 		WebhookPath: getEnv("REMORA_WEBHOOK_PATH", "/webhook"),

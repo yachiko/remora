@@ -125,7 +125,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Handle based on action
-	ctx := context.Background()
+	ctx := r.Context()
 	switch event.Action {
 	case ActionCreated:
 		if err := h.handleCommentCreated(ctx, deliveryID, &event); err != nil {

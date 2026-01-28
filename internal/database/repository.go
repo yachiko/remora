@@ -139,20 +139,29 @@ func (r *reminderRepository) GetAndLockDueReminders(limit int) ([]*models.Remind
 			return tx.Where("id IN ?", ids).Find(&reminders).Error
 		}
 
-		// SQLite: simple update without SKIP LOCKED
+		// SQLite: Get IDs first, then update and return
+		var ids []uint
 		if err := tx.Model(&models.Reminder{}).
 			Where("status = ? AND remind_at <= ?", models.StatusPending, time.Now()).
 			Order("remind_at ASC").
 			Limit(limit).
+			Pluck("id", &ids).Error; err != nil {
+			return err
+		}
+
+		if len(ids) == 0 {
+			return nil
+		}
+
+		// Update only the selected reminders
+		if err := tx.Model(&models.Reminder{}).
+			Where("id IN ?", ids).
 			Update("status", models.StatusProcessing).Error; err != nil {
 			return err
 		}
 
-		// Fetch updated reminders
-		return tx.Where("status = ?", models.StatusProcessing).
-			Order("remind_at ASC").
-			Limit(limit).
-			Find(&reminders).Error
+		// Fetch only the reminders we just updated
+		return tx.Where("id IN ?", ids).Find(&reminders).Error
 	})
 
 	return reminders, err
