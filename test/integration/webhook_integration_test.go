@@ -23,7 +23,7 @@ import (
 )
 
 // testWebhookSecret is the secret used for signing test payloads.
-const testWebhookSecret = "test-webhook-secret" //nolint:gosec
+const testWebhookSecret = "test-webhook-secret"
 
 // MockGitHubClient is a mock implementation for integration tests.
 type MockGitHubClient struct {

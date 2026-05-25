@@ -10,6 +10,18 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
+// Log level names accepted in configuration and used in switch logic.
+const (
+	levelDebug   = "debug"
+	levelInfo    = "info"
+	levelWarn    = "warn"
+	levelWarning = "warning"
+	levelError   = "error"
+	levelFatal   = "fatal"
+
+	envProduction = "production"
+)
+
 // Logger is the global logger instance
 var Logger *zap.Logger
 
@@ -18,7 +30,7 @@ func Initialize(environment string, logLevel string) error {
 	var config zap.Config
 
 	// Configure based on environment
-	if strings.ToLower(environment) == "production" {
+	if strings.ToLower(environment) == envProduction {
 		// Production: JSON format for machine parsing
 		config = zap.NewProductionConfig()
 	} else {
@@ -49,15 +61,15 @@ func Initialize(environment string, logLevel string) error {
 // parseLogLevel converts string log level to zap.Level
 func parseLogLevel(level string) (zapcore.Level, error) {
 	switch strings.ToLower(level) {
-	case "debug":
+	case levelDebug:
 		return zap.DebugLevel, nil
-	case "info":
+	case levelInfo:
 		return zap.InfoLevel, nil
-	case "warn", "warning":
+	case levelWarn, levelWarning:
 		return zap.WarnLevel, nil
-	case "error":
+	case levelError:
 		return zap.ErrorLevel, nil
-	case "fatal":
+	case levelFatal:
 		return zap.FatalLevel, nil
 	default:
 		return zap.InfoLevel, nil // Default to INFO

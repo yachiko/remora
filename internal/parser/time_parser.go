@@ -10,6 +10,9 @@ import (
 	"github.com/olebedev/when/rules/en"
 )
 
+// defaultTimezone is used when the command omits an explicit timezone.
+const defaultTimezone = "UTC"
+
 // TimeParser wraps the olebedev/when library for natural language date parsing
 type TimeParser struct {
 	parser *when.Parser
@@ -36,8 +39,8 @@ var timezoneAbbreviations = map[string]string{
 	"MDT": "America/Denver",
 	"PST": "America/Los_Angeles",
 	"PDT": "America/Los_Angeles",
-	"UTC": "UTC",
-	"GMT": "UTC",
+	"UTC": defaultTimezone,
+	"GMT": defaultTimezone,
 }
 
 // Regex to extract timezone from command (at the end)
@@ -67,7 +70,7 @@ var combinedDurationRegex = regexp.MustCompile(`^(\d+)\s+(week|weeks|month|month
 // It supports optional timezone suffix (defaults to UTC)
 func (tp *TimeParser) ParseTime(expression string, now time.Time) (*time.Time, error) {
 	// Extract timezone if present
-	timezone := "UTC"
+	timezone := defaultTimezone
 	cleanExpression := expression
 
 	// First check for potential timezone suffix

@@ -17,6 +17,13 @@ const (
 	DatabaseTypeSQLite   = "sqlite"
 )
 
+// Error mode constants control how the webhook handler responds to invalid
+// commands.
+const (
+	ErrorModeReactionOnly       = "reaction_only"
+	ErrorModeReactionAndComment = "reaction_and_comment"
+)
+
 // Config holds all application configuration
 type Config struct {
 	// Database configuration
@@ -92,7 +99,7 @@ func Load() (*Config, error) {
 
 		SchedulerInterval: getEnvAsInt("REMORA_SCHEDULER_INTERVAL", 5),
 
-		ErrorMode: getEnv("REMORA_ERROR_MODE", "reaction_only"),
+		ErrorMode: getEnv("REMORA_ERROR_MODE", ErrorModeReactionOnly),
 
 		PostToClosed: getEnvAsBool("REMORA_POST_TO_CLOSED", true),
 
@@ -284,11 +291,11 @@ func isValidDatabaseType(dbType string) bool {
 }
 
 func isValidErrorMode(mode string) bool {
-	return mode == "reaction_only" || mode == "reaction_and_comment"
+	return mode == ErrorModeReactionOnly || mode == ErrorModeReactionAndComment
 }
 
 func isValidLogLevel(level string) bool {
-	validLevels := []string{"debug", "info", "warn", "error", "fatal"}
+	validLevels := []string{"debug", "info", "warn", "error", "fatal"} //nolint:goconst // log-level enum literals; logger package owns the canonical consts
 	for _, l := range validLevels {
 		if level == l {
 			return true

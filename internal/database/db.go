@@ -33,17 +33,17 @@ func Initialize(cfg *config.Config) error {
 
 	// Select appropriate database driver
 	switch cfg.DatabaseType {
-	case "postgresql", "postgres":
+	case config.DatabaseTypePostgres, dialectPostgres:
 		dsn := cfg.DatabaseURL()
 		dialector = postgres.Open(dsn)
 		logger.Info("connecting to postgresql", zap.String("host", cfg.DatabaseHost))
 
-	case "mysql":
+	case config.DatabaseTypeMySQL:
 		dsn := cfg.DatabaseURL()
 		dialector = mysql.Open(dsn)
 		logger.Info("connecting to mysql", zap.String("host", cfg.DatabaseHost))
 
-	case "sqlite":
+	case config.DatabaseTypeSQLite:
 		dsn := cfg.DatabaseURL()
 		dialector = sqlite.Open(dsn)
 		logger.Info("connecting to sqlite", zap.String("file", cfg.DatabaseSQLitePath))

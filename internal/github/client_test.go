@@ -136,7 +136,7 @@ func TestGetInstallationToken_Expiration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to get installation token: %v", err)
 	}
-	if token != "ghs_new_token" { //nolint:gosec // Test token value, not a real credential
+	if token != "ghs_new_token" {
 		t.Errorf("expected new token, got %s", token)
 	}
 }

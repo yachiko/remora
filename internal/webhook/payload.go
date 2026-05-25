@@ -5,6 +5,12 @@ import (
 	"time"
 )
 
+// GitHub issue/PR state values.
+const (
+	issueStateOpen   = "open"
+	issueStateClosed = "closed"
+)
+
 // IssueCommentEvent represents a GitHub issue_comment webhook event
 type IssueCommentEvent struct {
 	Action       string       `json:"action"`
@@ -116,10 +122,10 @@ func (i *Issue) IsPullRequest() bool {
 
 // IsOpen returns true if the issue/PR is open
 func (i *Issue) IsOpen() bool {
-	return i.State == "open"
+	return i.State == issueStateOpen
 }
 
 // IsClosed returns true if the issue/PR is closed
 func (i *Issue) IsClosed() bool {
-	return i.State == "closed"
+	return i.State == issueStateClosed
 }

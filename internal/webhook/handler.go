@@ -281,7 +281,7 @@ func (h *Handler) handleParseError(ctx context.Context, requestID string, event 
 	}
 
 	// If error mode is reaction_and_comment, post explanatory comment
-	if h.errorMode == "reaction_and_comment" {
+	if h.errorMode == config.ErrorModeReactionAndComment {
 		errorComment := h.formatErrorComment(event.Comment.User.Login, parseErr)
 		_, err := h.github.PostComment(ctx, event.Installation.ID, event.Repository.Owner.Login, event.Repository.Name, event.Issue.Number, errorComment)
 		if err != nil {

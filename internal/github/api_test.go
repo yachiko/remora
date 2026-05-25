@@ -14,7 +14,7 @@ import (
 
 // Test constants for API paths
 const (
-	testInstallationTokenPath = "/app/installations/123/access_tokens" //nolint:gosec // Test URL path, not a credential
+	testInstallationTokenPath = "/app/installations/123/access_tokens"
 	testReactionsPath         = "/repos/owner/repo/issues/comments/456/reactions"
 )
 

@@ -27,6 +27,9 @@ import (
 // Version is set during build time
 var Version = "dev"
 
+// JSON response field names used across health, readiness, and error handlers.
+const fieldTimestamp = "timestamp"
+
 // githubClientWrapper wraps github.Client to match scheduler.GitHubClient interface
 type githubClientWrapper struct {
 	client *github.Client
@@ -209,9 +212,9 @@ func healthHandler(db *gorm.DB, log *zap.Logger) http.HandlerFunc {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		_ = json.NewEncoder(w).Encode(map[string]interface{}{
-			"status":    "healthy",
-			"version":   Version,
-			"timestamp": time.Now().UTC().Format(time.RFC3339),
+			"status":       "healthy",
+			"version":      Version,
+			fieldTimestamp: time.Now().UTC().Format(time.RFC3339),
 		})
 	}
 }
@@ -242,9 +245,9 @@ func readinessHandler(db *gorm.DB, _ *scheduler.Scheduler, log *zap.Logger) http
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		_ = json.NewEncoder(w).Encode(map[string]interface{}{
-			"status":    "ready",
-			"version":   Version,
-			"timestamp": time.Now().UTC().Format(time.RFC3339),
+			"status":       "ready",
+			"version":      Version,
+			fieldTimestamp: time.Now().UTC().Format(time.RFC3339),
 		})
 	}
 }
@@ -287,8 +290,8 @@ func writeJSONError(w http.ResponseWriter, message string, statusCode int) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
 	_ = json.NewEncoder(w).Encode(map[string]interface{}{
-		"error":     message,
-		"timestamp": time.Now().UTC().Format(time.RFC3339),
+		"error":        message,
+		fieldTimestamp: time.Now().UTC().Format(time.RFC3339),
 	})
 }
 

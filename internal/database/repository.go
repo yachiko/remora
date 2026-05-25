@@ -8,6 +8,16 @@ import (
 	"gorm.io/gorm/clause"
 )
 
+// GORM dialect names returned by tx.Name() for each supported driver.
+const (
+	dialectPostgres = "postgres"
+	dialectMySQL    = "mysql"
+	dialectSQLite   = "sqlite"
+)
+
+// columnStatus is the SQL column name shared by every status update.
+const columnStatus = "status"
+
 // ReminderRepository defines the interface for reminder database operations
 type ReminderRepository interface {
 	// Create creates a new reminder
@@ -110,7 +120,7 @@ func (r *reminderRepository) GetAndLockDueReminders(limit int) ([]*models.Remind
 		// Determine database dialect
 		dialect := tx.Name()
 
-		if dialect == "postgres" || dialect == "mysql" {
+		if dialect == dialectPostgres || dialect == dialectMySQL {
 			// Use FOR UPDATE SKIP LOCKED for PostgreSQL and MySQL
 			subQuery := tx.Model(&models.Reminder{}).
 				Where("status = ? AND remind_at <= ?", models.StatusPending, time.Now()).
@@ -131,7 +141,7 @@ func (r *reminderRepository) GetAndLockDueReminders(limit int) ([]*models.Remind
 			// Update status to processing
 			if err := tx.Model(&models.Reminder{}).
 				Where("id IN ?", ids).
-				Update("status", models.StatusProcessing).Error; err != nil {
+				Update(columnStatus, models.StatusProcessing).Error; err != nil {
 				return err
 			}
 
@@ -156,7 +166,7 @@ func (r *reminderRepository) GetAndLockDueReminders(limit int) ([]*models.Remind
 		// Update only the selected reminders
 		if err := tx.Model(&models.Reminder{}).
 			Where("id IN ?", ids).
-			Update("status", models.StatusProcessing).Error; err != nil {
+			Update(columnStatus, models.StatusProcessing).Error; err != nil {
 			return err
 		}
 
@@ -171,7 +181,7 @@ func (r *reminderRepository) GetAndLockDueReminders(limit int) ([]*models.Remind
 func (r *reminderRepository) UpdateStatus(id uint, status models.ReminderStatus) error {
 	return r.db.Model(&models.Reminder{}).
 		Where("id = ?", id).
-		Update("status", status).Error
+		Update(columnStatus, status).Error
 }
 
 // MarkFired marks a reminder as successfully fired
@@ -180,8 +190,8 @@ func (r *reminderRepository) MarkFired(id uint) error {
 	return r.db.Model(&models.Reminder{}).
 		Where("id = ?", id).
 		Updates(map[string]interface{}{
-			"status":   models.StatusFired,
-			"fired_at": now,
+			columnStatus: models.StatusFired,
+			"fired_at":   now,
 		}).Error
 }
 
@@ -190,7 +200,7 @@ func (r *reminderRepository) MarkFailed(id uint, errorMsg string) error {
 	return r.db.Model(&models.Reminder{}).
 		Where("id = ?", id).
 		Updates(map[string]interface{}{
-			"status":        models.StatusFailed,
+			columnStatus:    models.StatusFailed,
 			"error_message": errorMsg,
 		}).Error
 }
@@ -200,7 +210,7 @@ func (r *reminderRepository) IncrementRetry(id uint) error {
 	return r.db.Model(&models.Reminder{}).
 		Where("id = ?", id).
 		Updates(map[string]interface{}{
-			"status":      models.StatusPending,
+			columnStatus:  models.StatusPending,
 			"retry_count": gorm.Expr("retry_count + 1"),
 		}).Error
 }
@@ -209,7 +219,7 @@ func (r *reminderRepository) IncrementRetry(id uint) error {
 func (r *reminderRepository) Cancel(commentID int64) error {
 	return r.db.Model(&models.Reminder{}).
 		Where("comment_id = ?", commentID).
-		Update("status", models.StatusCancelled).Error
+		Update(columnStatus, models.StatusCancelled).Error
 }
 
 // Delete soft-deletes a reminder

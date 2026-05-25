@@ -28,13 +28,29 @@ linters:
     - sloglint
     - revive
   exclusions:
-    rules: 
-      - linters: 
+    rules:
+      - linters:
           - gocritic
         text: "hugeParam"
-      - linters: 
+      - linters:
           - revive
         text: "var-naming"
-      - linters: 
+      - linters:
           - revive
         text: "dot-imports"
+      # Test fixtures: JSON keys ("body", "action", …) duplicated across
+      # table-driven tests don't benefit from being deduped into consts.
+      - linters:
+          - goconst
+        path: '(_test\.go|test/)'
+      # Hard-coded "credentials" in tests are deliberate fixtures.
+      - linters:
+          - gosec
+        text: "G101"
+        path: '_test\.go'
+      # httptest.NewRequest is fine in test code; the context-aware
+      # variant is only required in production paths.
+      - linters:
+          - noctx
+        text: "httptest"
+        path: '_test\.go'

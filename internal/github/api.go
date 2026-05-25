@@ -40,7 +40,7 @@ func (c *Client) AddReaction(ctx context.Context, installationID int64, owner, r
 	url := fmt.Sprintf("%s/repos/%s/%s/issues/comments/%d/reactions", c.baseURL, owner, repo, commentID)
 
 	payload := map[string]string{
-		"content": string(reaction),
+		"content": string(reaction), //nolint:goconst // GitHub API field name, not a duplicated semantic value
 	}
 
 	payloadBytes, err := json.Marshal(payload)
