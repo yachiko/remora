@@ -27,7 +27,7 @@ test: ## Run unit tests
 
 test-integration: ## Run integration tests
 	@echo "Running integration tests..."
-	@go test -v -run Integration ./...
+	@REMORA_INTEGRATION_TESTS=1 go test -v ./test/integration/...
 
 test-coverage: ## Run tests with coverage report
 	@echo "Running tests with coverage..."
