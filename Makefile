@@ -11,6 +11,10 @@ GOTESTSUM ?= gotestsum
 TEST_FORMAT ?= pkgname
 GOTESTSUM_FLAGS = --format $(TEST_FORMAT) --hide-summary=skipped
 
+deps: 
+	go mod download
+	go mod tidy
+
 help: ## Show this help message
 	@echo 'Usage: make [target]'
 	@echo ''
