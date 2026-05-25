@@ -12,11 +12,11 @@ Remora exposes HTTP endpoints for GitHub webhook integration, health monitoring,
 
 The GitHub App requires the following permissions:
 
-| Permission | Access Level | Purpose |
-|------------|-------------|----------|
-| **Issues** | Read & Write | Post reminder comments, add reactions to issue comments |
+| Permission        | Access Level | Purpose                                                     |
+| ----------------- | ------------ | ----------------------------------------------------------- |
+| **Issues**        | Read & Write | Post reminder comments, add reactions to issue comments     |
 | **Pull Requests** | Read & Write | Post reminder comments on PRs, add reactions to PR comments |
-| **Metadata** | Read | Access repository information (owner, name) |
+| **Metadata**      | Read         | Access repository information (owner, name)                 |
 
 **Note**: GitHub API treats issue comments and PR comments similarly - both use the issue comments endpoint. However, requesting both permissions explicitly ensures clarity.
 

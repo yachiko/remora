@@ -3,7 +3,7 @@ module github.com/yachiko/remora
 go 1.25.4
 
 require (
-	github.com/golang-jwt/jwt/v5 v5.3.0
+	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/google/uuid v1.6.0
 	github.com/olebedev/when v1.1.0
 	github.com/stretchr/testify v1.11.1
