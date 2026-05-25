@@ -80,9 +80,11 @@ jobs:
           # Start container in background
           docker run -d --name remora-test \
             -p 8080:8080 \
-            -e REMORA_GITHUB_WEBHOOK_SECRET=test-secret \
-            -e REMORA_GITHUB_APP_ID=12345 \
-            -e REMORA_GITHUB_PRIVATE_KEY="$(openssl genrsa 2048 2>/dev/null)" \
+            -e GITHUB_WEBHOOK_SECRET=test-secret \
+            -e GITHUB_APP_ID=12345 \
+            -e GITHUB_APP_PRIVATE_KEY="$(openssl genrsa 2048 2>/dev/null)" \
+            -e DATABASE_TYPE=sqlite \
+            -e DATABASE_SQLITE_PATH=/tmp/remora.db \
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.version }}
 
           # Wait for container to be ready
