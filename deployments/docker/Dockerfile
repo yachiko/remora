@@ -31,14 +31,7 @@ RUN CGO_ENABLED=1 go build \
     ./cmd/remora
 
 # Stage 2: Runtime
-FROM alpine:3.19
-
-# Install runtime dependencies
-RUN apk add --no-cache ca-certificates tzdata
-
-# Create non-root user
-RUN addgroup -g 1000 remora && \
-    adduser -D -u 1000 -G remora remora
+FROM gcr.io/distroless/static-debian13:nonroot
 
 # Set working directory
 WORKDIR /app
@@ -46,21 +39,11 @@ WORKDIR /app
 # Copy binary from builder
 COPY --from=builder /build/remora /app/remora
 
-# Copy timezone data
+# Copy timezone data from builder
 COPY --from=builder /usr/share/zoneinfo /usr/share/zoneinfo
-
-# Set ownership
-RUN chown -R remora:remora /app
-
-# Switch to non-root user
-USER remora
 
 # Expose port
 EXPOSE 8080
-
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1
 
 # Run the application
 ENTRYPOINT ["/app/remora"]

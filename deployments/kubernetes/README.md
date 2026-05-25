@@ -6,8 +6,19 @@ This directory contains Kubernetes manifests for deploying Remora.
 
 - Kubernetes cluster (1.25+)
 - kubectl configured
-- PostgreSQL database (external or in-cluster)
 - GitHub App created and configured
+- (Optional) External PostgreSQL database - or use included StatefulSet
+
+## Architecture
+
+The deployment includes:
+- **Remora application** - Deployment with single replica
+- **PostgreSQL database** - StatefulSet with persistent storage (optional - can use external DB)
+- **Services** - For both Remora and PostgreSQL
+- **ConfigMap** - Application configuration
+- **Secrets** - Sensitive credentials
+- **ServiceAccount** - RBAC configuration
+- **Ingress** - (Optional) External access
 
 ## Deployment Steps
 
@@ -22,7 +33,7 @@ kubectl apply -f namespace.yaml
 **Option A: From files**
 
 ```bash
-kubectl create secret generic remora-secrets \
+kubectl create secret generic remora-secret \
   --from-literal=DATABASE_USER=remora_user \
   --from-literal=DATABASE_PASSWORD=your_secure_password \
   --from-literal=GITHUB_APP_ID=123456 \
@@ -41,7 +52,7 @@ kubectl apply -f secret.yaml
 ### 3. Update ConfigMap
 
 Edit `configmap.yaml` to match your environment:
-- Database host and configuration
+- Database host and configuration (default: postgres-service.remora.svc.cluster.local)
 - Logging level
 - Feature flags
 
@@ -49,7 +60,21 @@ Edit `configmap.yaml` to match your environment:
 kubectl apply -f configmap.yaml
 ```
 
-### 4. Deploy Application
+### 4. Deploy PostgreSQL StatefulSet (Optional)
+
+If using the included PostgreSQL StatefulSet:
+
+```bash
+kubectl apply -f postgres-statefulset.yaml
+```
+
+**Note:** For production, consider using a cloud-managed database (AWS RDS, GCP Cloud SQL, Azure Database) instead.
+
+To skip the StatefulSet and use external PostgreSQL:
+- Update `configmap.yaml` with your database host
+- Remove `postgres-statefulset.yaml` from `kustomization.yaml`
+
+### 5. Deploy Application
 
 ```bash
 kubectl apply -f serviceaccount.yaml
@@ -135,7 +160,23 @@ Do not scale to multiple replicas without implementing distributed locking (Phas
 
 ## Database Configuration
 
-### External PostgreSQL
+### Option 1: In-Cluster PostgreSQL (Development/Testing)
+
+The included `postgres-statefulset.yaml` provides a simple PostgreSQL deployment:
+
+```yaml
+# Already configured in configmap.yaml
+DATABASE_HOST: "postgres-service.remora.svc.cluster.local"
+DATABASE_PORT: "5432"
+```
+
+**Storage Configuration:**
+- Default: 10Gi PersistentVolumeClaim
+- Customize storage class by uncommenting `storageClassName` in `postgres-statefulset.yaml`
+
+**Note:** This is suitable for development/testing but not recommended for production.
+
+### Option 2: External PostgreSQL (Production)
 
 Update `configmap.yaml`:
 
@@ -145,7 +186,7 @@ DATABASE_PORT: "5432"
 DATABASE_SSLMODE: "require"
 ```
 
-### Cloud-Managed Database (AWS RDS, GCP Cloud SQL, etc.)
+### Option 3: Cloud-Managed Database (AWS RDS, GCP Cloud SQL, etc.)
 
 Update secrets with connection details:
 

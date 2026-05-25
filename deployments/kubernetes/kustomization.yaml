@@ -8,6 +8,7 @@ resources:
   - serviceaccount.yaml
   - configmap.yaml
   - secret.yaml
+  - postgres-statefulset.yaml
   - deployment.yaml
   - service.yaml
   - ingress.yaml
