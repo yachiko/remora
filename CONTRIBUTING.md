@@ -6,7 +6,7 @@ Thanks for your interest in helping. This document covers local setup, the test 
 
 - Go **1.25** or newer (matches `go.mod`)
 - Docker (for running integration tests against real databases and for building the deployment image)
-- `golangci-lint` — install with `make install-tools`
+- `golangci-lint` and `gotestsum` — install both with `make install-tools`
 
 ## Repository layout
 
@@ -28,7 +28,8 @@ cp .env.example .env
 
 make build            # build ./bin/remora
 make run              # run locally
-make test             # unit tests
+make test             # unit tests (gotestsum, one line per package + summary)
+make test-verbose     # unit tests, one line per individual test
 make test-integration # integration tests (gated by REMORA_INTEGRATION_TESTS=1)
 make test-coverage    # tests + coverage.html
 make lint             # golangci-lint
@@ -36,6 +37,8 @@ make fmt              # gofmt
 ```
 
 The default `DATABASE_TYPE=sqlite` writes to `./data/remora.db`, so you can run locally without a database server.
+
+`make test` uses [gotestsum](https://github.com/gotestyourself/gotestsum) to print a per-package status line (`✓ internal/parser (24ms)`) and a final `DONE N tests, M skipped in Xs` summary. On failure, the failed tests' output is re-printed at the bottom for quick triage. If gotestsum is missing, run `make install-tools`.
 
 ## Test expectations
 

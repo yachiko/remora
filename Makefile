@@ -1,10 +1,15 @@
-.PHONY: help build test test-integration test-coverage run clean docker-build docker-run lint fmt vet
+.PHONY: help build test test-verbose test-integration test-coverage run clean docker-build docker-run lint fmt vet
 
 # Variables
 BINARY_NAME=remora
 DOCKER_IMAGE=remora
 DOCKER_TAG=latest
 GO_FILES=$(shell find . -name '*.go' -not -path "./vendor/*")
+
+# Test runner: gotestsum gives per-package pass/fail with a final summary.
+GOTESTSUM ?= gotestsum
+TEST_FORMAT ?= pkgname
+GOTESTSUM_FLAGS = --format $(TEST_FORMAT) --hide-summary=skipped
 
 help: ## Show this help message
 	@echo 'Usage: make [target]'
@@ -22,16 +27,16 @@ run: ## Run the application locally
 	@go run ./cmd/remora
 
 test: ## Run unit tests
-	@echo "Running unit tests..."
-	@go test -v -short ./...
+	@$(GOTESTSUM) $(GOTESTSUM_FLAGS) -- -short ./...
+
+test-verbose: ## Run unit tests with per-test output
+	@$(GOTESTSUM) --format testname --hide-summary=skipped -- -short ./...
 
 test-integration: ## Run integration tests
-	@echo "Running integration tests..."
-	@REMORA_INTEGRATION_TESTS=1 go test -v ./test/integration/...
+	@REMORA_INTEGRATION_TESTS=1 $(GOTESTSUM) $(GOTESTSUM_FLAGS) -- ./test/integration/...
 
 test-coverage: ## Run tests with coverage report
-	@echo "Running tests with coverage..."
-	@go test -v -coverprofile=coverage.txt -covermode=atomic ./...
+	@$(GOTESTSUM) $(GOTESTSUM_FLAGS) -- -coverprofile=coverage.txt -covermode=atomic ./...
 	@go tool cover -html=coverage.txt -o coverage.html
 	@echo "Coverage report generated: coverage.html"
 
@@ -65,5 +70,6 @@ docker-run: ## Run Docker container
 install-tools: ## Install development tools
 	@echo "Installing development tools..."
 	@go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+	@go install gotest.tools/gotestsum@latest
 
 .DEFAULT_GOAL := help
