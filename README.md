@@ -1,6 +1,11 @@
-# Remora
+<p align="center">
+  <img src="logo.png" alt="Remora logo" width="170" />
+</p>
 
-A GitHub App that turns `remora <time>` comments on issues and pull requests into scheduled reminders.
+<h1 align="center">Remora</h1>
+<p align="center"><strong>GitHub App that turns `remora time>` comments on issues and pull requests into scheduled reminders.</strong></p>
+
+---
 
 When someone writes `remora in 2 days` in an issue comment, Remora reacts to the comment (👀), waits the requested duration, and posts a reminder back on the issue.
 
