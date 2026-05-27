@@ -1,6 +1,6 @@
 # Multi-stage Dockerfile for Remora
 # Stage 1: Builder
-FROM golang:1.25-alpine AS builder
+FROM golang:1.26-alpine AS builder
 
 # Install build dependencies (gcc and musl-dev needed for CGO/SQLite)
 RUN apk add --no-cache \
