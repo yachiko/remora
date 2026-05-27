@@ -5,6 +5,13 @@
 <h1 align="center">Remora</h1>
 <p align="center"><strong>GitHub App that turns `remora time>` comments on issues and pull requests into scheduled reminders.</strong></p>
 
+<p align="center">
+  <a href="https://github.com/yachiko/remora/actions/workflows/ci.yml"><img src="https://github.com/yachiko/remora/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/yachiko/remora/releases"><img src="https://img.shields.io/github/v/release/yachiko/remora" alt="Release"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/yachiko/remora" alt="License"></a>
+  <a href="go.mod"><img src="https://img.shields.io/github/go-mod/go-version/yachiko/remora" alt="Go version"></a>
+</p>
+
 ---
 
 When someone writes `remora in 2 days` in an issue comment, Remora reacts to the comment (👀), waits the requested duration, and posts a reminder back on the issue.
@@ -121,4 +128,4 @@ Phases 0–8 of the [development roadmap](spec/development-roadmap.md) are compl
 
 ## License
 
-TBD.
+[MIT](LICENSE)

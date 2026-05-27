@@ -1,4 +1,4 @@
-.PHONY: help build test test-verbose test-integration test-coverage run clean docker-build docker-run lint fmt vet
+.PHONY: help build test test-verbose test-integration test-coverage run clean docker-build docker-run lint fmt vet tag
 
 # Variables
 BINARY_NAME=remora
@@ -75,5 +75,22 @@ install-tools: ## Install development tools
 	@echo "Installing development tools..."
 	@go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
 	@go install gotest.tools/gotestsum@latest
+
+tag: ## Create and push next patch version tag (vX.Y.(Z+1))
+	@set -e; \
+	last=$$(git tag --list 'v*' --sort=-v:refname | head -1); \
+	if [ -z "$$last" ]; then \
+	  new="v0.0.1"; \
+	else \
+	  ver=$${last#v}; \
+	  major=$${ver%%.*}; rest=$${ver#*.}; minor=$${rest%%.*}; patch=$${rest#*.}; \
+	  patch=$$((patch+1)); \
+	  new="v$$major.$$minor.$$patch"; \
+	fi; \
+	echo "Last tag: $$last"; \
+	echo "New tag: $$new"; \
+	git tag $$new; \
+	git push origin $$new; \
+	echo "✅ Created and pushed $$new"
 
 .DEFAULT_GOAL := help
