@@ -7,7 +7,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/olebedev/when v1.1.0
 	github.com/stretchr/testify v1.11.1
-	go.uber.org/zap v1.27.1
+	go.uber.org/zap v1.28.0
 	gorm.io/driver/mysql v1.6.0
 	gorm.io/driver/postgres v1.6.0
 	gorm.io/driver/sqlite v1.6.0
